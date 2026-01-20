@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ImageTText</string>
+    <string name="capture_button">Capture</string>
+    <string name="settings_button">Settings</string>
+    <string name="ready_to_capture">Ready to capture. Press the button to take a photo and extract text.</string>
+    <string name="processing">Processing image...</string>
+    <string name="error_no_text">No text detected in the image</string>
+    <string name="error_camera_init">Failed to initialize camera</string>
+    <string name="error_permissions">Camera permissions are required</string>
+</resources>

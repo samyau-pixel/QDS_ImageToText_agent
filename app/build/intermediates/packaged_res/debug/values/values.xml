@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ImageTText</string>
+    <string name="capture_button">Capture</string>
+    <string name="error_camera_init">Failed to initialize camera</string>
+    <string name="error_no_text">No text detected in the image</string>
+    <string name="error_permissions">Camera permissions are required</string>
+    <string name="processing">Processing image...</string>
+    <string name="ready_to_capture">Ready to capture. Press the button to take a photo and extract text.</string>
+    <string name="settings_button">Settings</string>
+    <style name="Theme.ImageTText" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="colorPrimary">@android:color/holo_blue_bright</item>
+        <item name="colorPrimaryDark">@android:color/holo_blue_dark</item>
+        <item name="colorAccent">@android:color/holo_orange_light</item>
+    </style>
+</resources>

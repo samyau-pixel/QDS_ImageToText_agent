@@ -1,0 +1,20 @@
+R_DEF: Internal format may change without notice
+local
+id apiKeyEditText
+id captureButton
+id progressBar
+id resetButton
+id resultTextView
+id saveButton
+id settingsButton
+layout activity_main
+layout activity_settings
+string app_name
+string capture_button
+string error_camera_init
+string error_no_text
+string error_permissions
+string processing
+string ready_to_capture
+string settings_button
+style Theme.ImageTText
