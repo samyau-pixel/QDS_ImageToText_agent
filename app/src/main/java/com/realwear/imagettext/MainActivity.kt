@@ -1,12 +1,10 @@
 package com.realwear.imagettext
 
 import android.Manifest
-import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Bundle
-import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.view.View
@@ -17,9 +15,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity() {
 
@@ -35,13 +35,17 @@ class MainActivity : AppCompatActivity() {
         private const val CAMERA_REQUEST_CODE = 100
         private const val PERMISSION_REQUEST_CODE = 200
         private val REQUIRED_PERMISSIONS =
-            arrayOf(Manifest.permission.CAMERA, Manifest.permission.INTERNET, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            arrayOf(Manifest.permission.CAMERA, Manifest.permission.INTERNET)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Initialize API service with saved API key
+        apiService = OCRApiService(this)
+
+        // Initialize UI components
         captureButton = findViewById(R.id.captureButton)
         settingsButton = findViewById(R.id.settingsButton)
         resultTextView = findViewById(R.id.resultTextView)
@@ -51,6 +55,7 @@ class MainActivity : AppCompatActivity() {
         if (allPermissionsGranted()) {
             resultTextView.text = "Ready to capture photo"
         } else {
+            resultTextView.text = "Requesting permissions..."
             ActivityCompat.requestPermissions(
                 this,
                 REQUIRED_PERMISSIONS,
@@ -76,7 +81,7 @@ class MainActivity : AppCompatActivity() {
         // Check permissions first
         if (!allPermissionsGranted()) {
             Log.e("ImageTText", "Permissions not granted")
-            resultTextView.text = "Permissions required. Please enable camera and storage permissions."
+            resultTextView.text = "Requesting camera permission..."
             ActivityCompat.requestPermissions(
                 this,
                 REQUIRED_PERMISSIONS,
@@ -86,41 +91,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         try {
-            Log.d("ImageTText", "Creating camera intent")
-            // Create camera intent
-            val captureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-
-            // Check if camera intent can be resolved
-            val cameraActivity = captureIntent.resolveActivity(packageManager)
-            if (cameraActivity != null) {
-                Log.d("ImageTText", "Camera app found: $cameraActivity")
-                
-                // Create content values for the photo
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, "photo_${System.currentTimeMillis()}.jpg")
-                    put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DCIM)
-                }
-
-                // Insert into MediaStore to get URI
-                currentPhotoUri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-                Log.d("ImageTText", "Photo URI created: $currentPhotoUri")
-                
-                if (currentPhotoUri != null) {
-                    captureIntent.putExtra(MediaStore.EXTRA_OUTPUT, currentPhotoUri)
-                    captureIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                    
-                    Log.d("ImageTText", "Starting camera activity")
-                    resultTextView.text = "Opening camera..."
-                    startActivityForResult(captureIntent, CAMERA_REQUEST_CODE)
-                } else {
-                    Log.e("ImageTText", "Failed to create photo URI")
-                    resultTextView.text = "Error: Could not create photo file"
-                }
-            } else {
-                Log.e("ImageTText", "No camera app available")
-                resultTextView.text = "Error: No camera application available"
-            }
+            Log.d("ImageTText", "Creating camera intent - Option 1: Raw Bitmap Photo (RealWear style)")
+            // Option 1: Raw Bitmap Photo - Simple approach, no storage permissions needed
+            // Following RealWear's CameraActivity.java example
+            val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+            resultTextView.text = "Opening camera..."
+            startActivityForResult(intent, CAMERA_REQUEST_CODE)
+            Log.d("ImageTText", "Camera intent started")
         } catch (e: Exception) {
             Log.e("ImageTText", "Error launching camera: ${e.message}", e)
             resultTextView.text = "Error: ${e.message}"
@@ -129,40 +106,60 @@ class MainActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        Log.d("ImageTText", "onActivityResult: requestCode=$requestCode, resultCode=$resultCode")
 
         if (requestCode == CAMERA_REQUEST_CODE && resultCode == RESULT_OK) {
-            resultTextView.text = "Photo captured. Processing..."
-            progressBar.visibility = View.VISIBLE
+            try {
+                // Option 1: Raw Bitmap Photo - Get the bitmap from the intent data
+                val photo: Bitmap? = data?.extras?.getParcelable("data")
+                
+                if (photo != null) {
+                    Log.d("ImageTText", "Photo received, size: ${photo.width}x${photo.height}")
+                    resultTextView.text = "Photo captured. Processing..."
+                    progressBar.visibility = View.VISIBLE
 
-            lifecycleScope.launch {
-                currentPhotoUri?.let { uri ->
-                    val photoFile = File(getRealPathFromURI(uri))
-                    if (photoFile.exists()) {
-                        sendImageToOCR(photoFile)
-                    } else {
-                        runOnUiThread {
-                            progressBar.visibility = View.GONE
-                            resultTextView.text = "Error: Photo file not found"
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        try {
+                            // Save bitmap to temporary file with high quality
+                            val tempFile = File(cacheDir, "temp_photo_${System.currentTimeMillis()}.jpg")
+                            Log.d("ImageTText", "Saving photo to: ${tempFile.absolutePath}")
+                            
+                            val fos = FileOutputStream(tempFile)
+                            val success = photo.compress(Bitmap.CompressFormat.JPEG, 95, fos)
+                            fos.close()
+                            
+                            Log.d("ImageTText", "Bitmap compressed: $success")
+                            Log.d("ImageTText", "File size: ${tempFile.length()} bytes")
+                            
+                            if (tempFile.exists() && tempFile.length() > 0) {
+                                Log.d("ImageTText", "Temp file created successfully, sending to OCR")
+                                sendImageToOCR(tempFile)
+                            } else {
+                                runOnUiThread {
+                                    progressBar.visibility = View.GONE
+                                    resultTextView.text = "Error: Photo file creation failed"
+                                    Log.e("ImageTText", "Temp file not created or empty")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("ImageTText", "Error saving bitmap: ${e.message}", e)
+                            runOnUiThread {
+                                progressBar.visibility = View.GONE
+                                resultTextView.text = "Error saving photo: ${e.message}"
+                            }
                         }
                     }
+                } else {
+                    Log.e("ImageTText", "No photo data received")
+                    resultTextView.text = "Error: No photo data received from camera"
                 }
+            } catch (e: Exception) {
+                Log.e("ImageTText", "Error processing photo: ${e.message}", e)
+                resultTextView.text = "Error: ${e.message}"
             }
-        }
-    }
-
-    private fun getRealPathFromURI(uri: android.net.Uri): String {
-        return when (uri.scheme) {
-            "content" -> {
-                val cursor = contentResolver.query(uri, null, null, null, null)
-                cursor?.use {
-                    if (it.moveToFirst()) {
-                        it.getString(it.getColumnIndexOrThrow(MediaStore.Images.Media.DATA))
-                    } else {
-                        uri.path ?: ""
-                    }
-                } ?: (uri.path ?: "")
-            }
-            else -> uri.path ?: ""
+        } else {
+            Log.d("ImageTText", "Camera cancelled or failed")
+            resultTextView.text = "Camera cancelled"
         }
     }
 
@@ -185,14 +182,6 @@ class MainActivity : AppCompatActivity() {
                 resultTextView.text = "Error processing image: ${e.message}"
             }
         }
-    }
-
-    private fun startCamera() {
-        // This function is kept for compatibility but not used
-    }
-
-    private fun captureImage() {
-        // This function is kept for compatibility but not used
     }
 
     override fun onRequestPermissionsResult(
