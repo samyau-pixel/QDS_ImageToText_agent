@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-37:12
-INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-37:12
-INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-37:12
-INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-37:12
+ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-38:12
+INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-38:12
+INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-38:12
+INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-38:12
 MERGED from [com.google.android.material:material:1.9.0] C:\Users\Sam\.gradle\caches\8.9\transforms\9d54a45e79bf7befa7c902d36a10affc\transformed\material-1.9.0\AndroidManifest.xml:17:1-26:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\Sam\.gradle\caches\8.9\transforms\29f5b9f19dc52382d7f75a4d4db657f3\transformed\constraintlayout-2.1.4\AndroidManifest.xml:2:1-11:12
 MERGED from [androidx.camera:camera-view:1.2.3] C:\Users\Sam\.gradle\caches\8.9\transforms\4cc11dd1a9a5ed0c2f16d315de0b63db\transformed\jetified-camera-view-1.2.3\AndroidManifest.xml:17:1-22:12
@@ -75,8 +75,8 @@ ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:10:5-12:35
 	android:name
 		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:11:9-47
 application
-ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:14:5-35:19
-INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:14:5-35:19
+ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:14:5-36:19
+INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:14:5-36:19
 MERGED from [com.google.android.material:material:1.9.0] C:\Users\Sam\.gradle\caches\8.9\transforms\9d54a45e79bf7befa7c902d36a10affc\transformed\material-1.9.0\AndroidManifest.xml:24:5-20
 MERGED from [com.google.android.material:material:1.9.0] C:\Users\Sam\.gradle\caches\8.9\transforms\9d54a45e79bf7befa7c902d36a10affc\transformed\material-1.9.0\AndroidManifest.xml:24:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\Sam\.gradle\caches\8.9\transforms\29f5b9f19dc52382d7f75a4d4db657f3\transformed\constraintlayout-2.1.4\AndroidManifest.xml:9:5-20
@@ -107,34 +107,36 @@ MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] C:\Users\Sa
 		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:15:9-35
 	android:theme
 		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:17:9-48
+	android:networkSecurityConfig
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:18:9-69
 activity#com.realwear.imagettext.MainActivity
-ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:19:9-27:20
+ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:20:9-28:20
 	android:screenOrientation
-		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:22:13-57
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:23:13-57
 	android:exported
-		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:21:13-36
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:22:13-36
 	android:name
-		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:20:13-41
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:21:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:23:13-26:29
+ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:24:13-27:29
 action#android.intent.action.MAIN
-ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:24:17-69
+ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:25:17-69
 	android:name
-		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:24:25-66
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:25:25-66
 category#android.intent.category.LAUNCHER
-ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:25:17-77
+ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:26:17-77
 	android:name
-		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:25:27-74
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:26:27-74
 activity#com.realwear.imagettext.SettingsActivity
-ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:29:9-33:58
+ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:30:9-34:58
 	android:screenOrientation
-		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:32:13-50
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:33:13-50
 	android:parentActivityName
-		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:33:13-55
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:34:13-55
 	android:exported
-		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:31:13-37
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:32:13-37
 	android:name
-		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:30:13-45
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:31:13-45
 uses-sdk
 INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml

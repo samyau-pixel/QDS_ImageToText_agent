@@ -10,6 +10,8 @@ id rackButton
 id rackResult
 id resetButton
 id saveButton
+id sendButton
+id serverIPEditText
 id settingsButton
 layout activity_main
 layout activity_settings
@@ -22,3 +24,4 @@ string processing
 string ready_to_capture
 string settings_button
 style Theme.ImageTText
+xml network_security_config
