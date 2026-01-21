@@ -283,7 +283,8 @@
                     </div>
                 </div>
                 <div class="actions" id="actions" style="display: none;">
-                    <button class="btn-primary" onclick="downloadFile()">⬇️ Download</button>
+                    <button class="btn-primary" onclick="downloadBatch()">⬇️ Download Batch (CSV + Photos)</button>
+                    <button class="btn-secondary" onclick="downloadFile()">⬇️ Download CSV Only</button>
                     <button class="btn-secondary" onclick="deleteFile()">🗑️ Delete</button>
                 </div>
             </div>
@@ -433,6 +434,12 @@
         function downloadFile() {
             if (selectedFile) {
                 window.location.href = `/download/${selectedFile.batch}/${selectedFile.filename}`;
+            }
+        }
+        
+        function downloadBatch() {
+            if (selectedFile) {
+                window.location.href = `/download-batch/${selectedFile.batch}`;
             }
         }
         

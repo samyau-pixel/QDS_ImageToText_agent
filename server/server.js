@@ -3,6 +3,7 @@ const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const archiver = require('archiver');
 
 const app = express();
 const PORT = 3000;
@@ -181,6 +182,39 @@ app.get('/download/:batch/:filename', (req, res) => {
         }
         
         res.download(filepath);
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Download entire batch folder as ZIP
+app.get('/download-batch/:batch', (req, res) => {
+    try {
+        const batchPath = path.join(uploadsDir, req.params.batch);
+        
+        // Security check
+        if (!batchPath.startsWith(uploadsDir) || !fs.existsSync(batchPath)) {
+            return res.status(403).json({ success: false, error: 'Access denied or batch not found' });
+        }
+        
+        // Create a ZIP file
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${req.params.batch}.zip"`);
+        
+        const archive = archiver('zip', { zlib: { level: 9 } });
+        
+        archive.on('error', (err) => {
+            console.error('Archive error:', err);
+            res.status(500).json({ success: false, error: 'Error creating archive' });
+        });
+        
+        // Pipe archive data to response
+        archive.pipe(res);
+        
+        // Add all files from the batch folder
+        archive.directory(batchPath, req.params.batch);
+        
+        archive.finalize();
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
