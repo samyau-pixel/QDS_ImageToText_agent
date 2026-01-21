@@ -22,6 +22,12 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Create templates directory if it doesn't exist
+const templatesDir = path.join(__dirname, 'templates');
+if (!fs.existsSync(templatesDir)) {
+    fs.mkdirSync(templatesDir, { recursive: true });
+}
+
 // Configure multer for temporary uploads (we'll move to batch folders later)
 const tempDir = path.join(__dirname, 'temp_uploads');
 if (!fs.existsSync(tempDir)) {
@@ -240,6 +246,87 @@ app.delete('/api/batch/:batch', (req, res) => {
         });
     } catch (err) {
         console.error('Delete error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Get all templates
+app.get('/api/templates', (req, res) => {
+    try {
+        const templates = [];
+        
+        if (!fs.existsSync(templatesDir)) {
+            return res.json({
+                success: true,
+                templates: []
+            });
+        }
+        
+        const files = fs.readdirSync(templatesDir);
+        
+        for (const file of files) {
+            if (file.endsWith('.csv')) {
+                const filePath = path.join(templatesDir, file);
+                const stats = fs.statSync(filePath);
+                templates.push({
+                    name: file,
+                    size: stats.size,
+                    modified: stats.mtime.getTime()
+                });
+            }
+        }
+        
+        res.json({
+            success: true,
+            templates: templates.sort((a, b) => b.modified - a.modified)
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Upload template
+app.post('/upload-template', upload.single('template'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'No file uploaded' });
+        }
+        
+        const tempPath = req.file.path;
+        const destPath = path.join(templatesDir, req.file.originalname);
+        
+        // Move file from temp to templates directory
+        fs.renameSync(tempPath, destPath);
+        
+        res.json({
+            success: true,
+            message: 'Template uploaded successfully',
+            filename: req.file.originalname
+        });
+    } catch (err) {
+        console.error('Template upload error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Download template
+app.get('/download-template/:filename', (req, res) => {
+    try {
+        const filename = req.params.filename;
+        const filepath = path.join(templatesDir, filename);
+        
+        // Security check: prevent directory traversal
+        if (!filepath.startsWith(templatesDir) || !filepath.endsWith('.csv')) {
+            return res.status(403).json({ success: false, error: 'Invalid template name' });
+        }
+        
+        if (!fs.existsSync(filepath)) {
+            return res.status(404).json({ success: false, error: 'Template not found' });
+        }
+        
+        res.download(filepath, filename);
+    } catch (err) {
+        console.error('Template download error:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });

@@ -50,7 +50,12 @@
             android:name="com.realwear.imagettext.PreviewActivity"
             android:exported="false"
             android:parentActivityName="com.realwear.imagettext.MainActivity"
-            android:screenOrientation="landscape" />
+            android:screenOrientation="reverseLandscape" />
+        <activity
+            android:name="com.realwear.imagettext.TemplateImportActivity"
+            android:exported="false"
+            android:parentActivityName="com.realwear.imagettext.MainActivity"
+            android:screenOrientation="reverseLandscape" />
 
         <service
             android:name="androidx.camera.core.impl.MetadataHolderService"

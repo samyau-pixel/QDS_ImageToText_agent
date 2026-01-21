@@ -11,6 +11,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -35,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var settingsButton: Button
     private lateinit var saveButton: Button
     private lateinit var previewButton: Button
+    private lateinit var importButton: Button
     private lateinit var rackButton: Button
     private lateinit var label1Button: Button
     private lateinit var label2Button: Button
@@ -89,12 +91,16 @@ class MainActivity : AppCompatActivity() {
         settingsButton = findViewById(R.id.settingsButton)
         saveButton = findViewById(R.id.saveButton)
         previewButton = findViewById(R.id.previewButton)
+        importButton = findViewById(R.id.importButton)
         rackButton = findViewById(R.id.rackButton)
         label1Button = findViewById(R.id.label1Button)
         label2Button = findViewById(R.id.label2Button)
         rackResult = findViewById(R.id.rackResult)
         label1Result = findViewById(R.id.label1Result)
         label2Result = findViewById(R.id.label2Result)
+        
+        // Load template if available
+        loadTemplateFields()
 
         // Check and request permissions
         if (!allPermissionsGranted()) {
@@ -140,6 +146,24 @@ class MainActivity : AppCompatActivity() {
         settingsButton.setOnClickListener {
             val intent = Intent(this, SettingsActivity::class.java)
             startActivity(intent)
+        }
+
+        // Set import button listener
+        importButton.setOnClickListener {
+            shouldReloadTemplate = true
+            val intent = Intent(this, TemplateImportActivity::class.java)
+            startActivity(intent)
+        }
+    }
+
+    private var shouldReloadTemplate = false
+
+    override fun onResume() {
+        super.onResume()
+        // Only reload template fields if we explicitly came from TemplateImportActivity
+        if (shouldReloadTemplate) {
+            loadTemplateFields()
+            shouldReloadTemplate = false
         }
     }
 
@@ -357,23 +381,50 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveCurrentEntry() {
         try {
-            val rackNumber = rackResult.text.toString().trim()
-            val label1 = label1Result.text.toString().trim()
-            val label2 = label2Result.text.toString().trim()
+            // Collect all field values including dynamic ones
+            val fieldValues = mutableMapOf<String, String>()
+            val fieldPhotoPaths = mutableMapOf<String, String>()
             
-            if (rackNumber.isEmpty() && label1.isEmpty() && label2.isEmpty()) {
+            // Get default fields
+            fieldValues["Rack Number"] = rackResult.text.toString().trim()
+            fieldValues["Label1"] = label1Result.text.toString().trim()
+            fieldValues["Label2"] = label2Result.text.toString().trim()
+            
+            // Store photo paths for the three default fields
+            if (!rackPhotoPath.isNullOrEmpty()) {
+                fieldPhotoPaths["Rack Number"] = rackPhotoPath ?: ""
+            }
+            if (!label1PhotoPath.isNullOrEmpty()) {
+                fieldPhotoPaths["Label1"] = label1PhotoPath ?: ""
+            }
+            if (!label2PhotoPath.isNullOrEmpty()) {
+                fieldPhotoPaths["Label2"] = label2PhotoPath ?: ""
+            }
+            
+            // Get dynamic field values
+            val fieldsContainer = findViewById<android.widget.LinearLayout>(R.id.fieldsContainer)
+            for (i in 3 until fieldsContainer.childCount) {
+                val view = fieldsContainer.getChildAt(i)
+                if (view is android.widget.LinearLayout && view.tag == "dynamic_field") {
+                    for (j in 0 until view.childCount) {
+                        val child = view.getChildAt(j)
+                        if (child is android.widget.EditText) {
+                            val fieldName = "Field_$i"
+                            fieldValues[fieldName] = child.text.toString().trim()
+                            break
+                        }
+                    }
+                }
+            }
+            
+            // Check if at least one field has data
+            if (fieldValues.all { it.value.isEmpty() }) {
                 Toast.makeText(this, "Please enter at least one value", Toast.LENGTH_SHORT).show()
                 return
             }
             
-            // Add entry to CSV
-            val success = csvManager.addEntry(
-                rackNumber = rackNumber,
-                label1 = label1,
-                label1PhotoPath = label1PhotoPath,
-                label2 = label2,
-                label2PhotoPath = label2PhotoPath
-            )
+            // Add entry to CSV with all fields
+            val success = csvManager.addDynamicEntry(fieldValues, fieldPhotoPaths)
             
             if (success) {
                 Toast.makeText(this, "Entry saved!", Toast.LENGTH_SHORT).show()
@@ -451,4 +502,115 @@ class MainActivity : AppCompatActivity() {
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
+
+    private fun loadTemplateFields() {
+        val template = TemplateManager.loadTemplate(this)
+        
+        if (template != null) {
+            Log.d("ImageTText", "Loading template: ${template.name} with columns: ${template.columns}")
+            
+            val fieldsContainer = findViewById<android.widget.LinearLayout>(R.id.fieldsContainer)
+            
+            // Always remove any previously added dynamic fields first
+            val viewsToRemove = mutableListOf<android.view.View>()
+            for (i in 0 until fieldsContainer.childCount) {
+                val view = fieldsContainer.getChildAt(i)
+                if (view.tag == "dynamic_field") {
+                    viewsToRemove.add(view)
+                }
+            }
+            for (view in viewsToRemove) {
+                fieldsContainer.removeView(view)
+            }
+            
+            // Update CSV headers to match template columns
+            csvManager.reinitializeCSVWithTemplate(template.columns)
+            
+            // Update the first 3 buttons with template column names
+            if (template.columns.size >= 1) {
+                rackButton.text = template.columns[0]
+                Log.d("ImageTText", "Updated rackButton to: ${template.columns[0]}")
+            }
+            if (template.columns.size >= 2) {
+                label1Button.text = template.columns[1]
+                Log.d("ImageTText", "Updated label1Button to: ${template.columns[1]}")
+            }
+            if (template.columns.size >= 3) {
+                label2Button.text = template.columns[2]
+                Log.d("ImageTText", "Updated label2Button to: ${template.columns[2]}")
+            }
+            
+            // Create additional fields for columns beyond the first 3
+            if (template.columns.size > 3) {
+                for (i in 3 until template.columns.size) {
+                    createDynamicField(fieldsContainer, template.columns[i], i)
+                }
+            }
+            
+            Toast.makeText(this, "Template loaded: ${template.name} (${template.columns.size} fields)", Toast.LENGTH_SHORT).show()
+        } else {
+            Log.d("ImageTText", "No template loaded, using default fields")
+        }
+    }
+
+    private fun createDynamicField(container: android.widget.LinearLayout, fieldName: String, index: Int) {
+        val fieldLayout = android.widget.LinearLayout(this)
+        fieldLayout.layoutParams = android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            dpToPx(80)
+        ).apply {
+            setMargins(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4))
+        }
+        fieldLayout.orientation = android.widget.LinearLayout.HORIZONTAL
+        fieldLayout.tag = "dynamic_field"
+        
+        // Create button
+        val button = android.widget.Button(this)
+        button.layoutParams = android.widget.LinearLayout.LayoutParams(
+            0,
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            0.5f
+        )
+        button.text = fieldName
+        button.textSize = 14f
+        button.setTextColor(android.graphics.Color.WHITE)
+        button.setBackgroundResource(if (index % 2 == 0) R.drawable.button_rack else R.drawable.button_label1)
+        button.id = android.view.View.generateViewId()
+        
+        // Create EditText
+        val editText = android.widget.EditText(this)
+        val editLayoutParams = android.widget.LinearLayout.LayoutParams(
+            0,
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            1.5f
+        )
+        editLayoutParams.leftMargin = dpToPx(6)
+        editText.layoutParams = editLayoutParams
+        editText.hint = "Empty"
+        editText.setTextColor(android.graphics.Color.WHITE)
+        editText.setHintTextColor(android.graphics.Color.parseColor("#4A4A4A"))
+        editText.gravity = android.view.Gravity.CENTER
+        editText.textSize = 16f
+        editText.inputType = android.text.InputType.TYPE_CLASS_TEXT
+        editText.setBackgroundResource(if (index % 2 == 0) R.drawable.edittext_dark else R.drawable.edittext_light)
+        editText.id = android.view.View.generateViewId()
+        
+        // Add click listener to button to open camera
+        button.setOnClickListener {
+            currentResultView = editText
+            editText.setText("Processing...")
+            launchCameraPhotoCapture()
+        }
+        
+        fieldLayout.addView(button)
+        fieldLayout.addView(editText)
+        container.addView(fieldLayout)
+        
+        Log.d("ImageTText", "Created dynamic field: $fieldName at index $index")
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * this.resources.displayMetrics.density).toInt()
+    }
+
 }

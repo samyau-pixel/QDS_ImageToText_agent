@@ -24,6 +24,26 @@ class CSVManager(private val context: Context) {
             Log.d("CSVManager", "CSV file created at: ${csvFile.absolutePath}")
         }
     }
+
+    fun reinitializeCSVWithTemplate(columns: List<String>) {
+        try {
+            // Build header with column names and photo columns
+            val headerParts = mutableListOf<String>()
+            for (column in columns) {
+                headerParts.add(column)
+                // Add a photo column for each field
+                headerParts.add("${column}_photo")
+            }
+            // Add timestamp column
+            headerParts.add("Timestamp")
+            
+            val header = headerParts.joinToString(",") + "\n"
+            csvFile.writeText(header)
+            Log.d("CSVManager", "CSV reinitialized with template columns: ${header.trim()}")
+        } catch (e: Exception) {
+            Log.e("CSVManager", "Error reinitializing CSV with template: ${e.message}", e)
+        }
+    }
     
     fun addEntry(
         rackNumber: String,
@@ -46,6 +66,35 @@ class CSVManager(private val context: Context) {
             true
         } catch (e: Exception) {
             Log.e("CSVManager", "Error adding entry: ${e.message}", e)
+            false
+        }
+    }
+
+    fun addDynamicEntry(
+        fieldValues: Map<String, String>,
+        fieldPhotoPaths: Map<String, String>
+    ): Boolean {
+        return try {
+            val timestamp = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(Date())
+            
+            // Build CSV entry with all field values
+            val values = mutableListOf<String>()
+            for ((fieldName, fieldValue) in fieldValues) {
+                val photoName = fieldPhotoPaths[fieldName]?.let { File(it).name } ?: ""
+                values.add("\"$fieldValue\"")
+                if (photoName.isNotEmpty()) {
+                    values.add("\"$photoName\"")
+                }
+            }
+            values.add("\"$timestamp\"")
+            
+            val entry = values.joinToString(",") + "\n"
+            csvFile.appendText(entry)
+            
+            Log.d("CSVManager", "Dynamic entry added: $entry")
+            true
+        } catch (e: Exception) {
+            Log.e("CSVManager", "Error adding dynamic entry: ${e.message}", e)
             false
         }
     }

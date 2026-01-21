@@ -36,7 +36,13 @@
         <activity
             android:name=".PreviewActivity"
             android:exported="false"
-            android:screenOrientation="landscape"
+            android:screenOrientation="reverseLandscape"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".TemplateImportActivity"
+            android:exported="false"
+            android:screenOrientation="reverseLandscape"
             android:parentActivityName=".MainActivity" />
 
     </application>

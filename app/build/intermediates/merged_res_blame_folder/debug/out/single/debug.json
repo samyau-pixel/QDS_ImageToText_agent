@@ -56,16 +56,20 @@
         "source": "C:\\Users\\Sam\\.gradle\\daemon\\8.9\\com.realwear.imagettext.app-main-6:\\xml\\network_security_config.xml"
     },
     {
-        "merged": "C:\\Users\\Sam\\.gradle\\daemon\\8.9\\com.realwear.imagettext.app-merged_res-4:\\layout_activity_settings.xml.flat",
-        "source": "C:\\Users\\Sam\\.gradle\\daemon\\8.9\\com.realwear.imagettext.app-main-6:\\layout\\activity_settings.xml"
-    },
-    {
         "merged": "C:\\Users\\Sam\\.gradle\\daemon\\8.9\\com.realwear.imagettext.app-merged_res-4:\\drawable_button_settings.xml.flat",
         "source": "C:\\Users\\Sam\\.gradle\\daemon\\8.9\\com.realwear.imagettext.app-main-6:\\drawable\\button_settings.xml"
     },
     {
+        "merged": "C:\\Users\\Sam\\.gradle\\daemon\\8.9\\com.realwear.imagettext.app-merged_res-4:\\layout_activity_settings.xml.flat",
+        "source": "C:\\Users\\Sam\\.gradle\\daemon\\8.9\\com.realwear.imagettext.app-main-6:\\layout\\activity_settings.xml"
+    },
+    {
         "merged": "com.realwear.imagettext.app-merged_res-4:/layout_activity_main.xml.flat",
         "source": "com.realwear.imagettext.app-main-6:/layout/activity_main.xml"
+    },
+    {
+        "merged": "C:\\Users\\Sam\\.gradle\\daemon\\8.9\\com.realwear.imagettext.app-merged_res-4:\\layout_activity_template_import.xml.flat",
+        "source": "C:\\Users\\Sam\\.gradle\\daemon\\8.9\\com.realwear.imagettext.app-main-6:\\layout\\activity_template_import.xml"
     },
     {
         "merged": "C:\\Users\\Sam\\.gradle\\daemon\\8.9\\com.realwear.imagettext.app-merged_res-4:\\drawable_button_send.xml.flat",
