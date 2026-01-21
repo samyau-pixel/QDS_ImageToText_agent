@@ -2,9 +2,13 @@ R_DEF: Internal format may change without notice
 local
 id apiKeyEditText
 id captureButton
-id progressBar
+id label1Button
+id label1Result
+id label2Button
+id label2Result
+id rackButton
+id rackResult
 id resetButton
-id resultTextView
 id saveButton
 id settingsButton
 layout activity_main

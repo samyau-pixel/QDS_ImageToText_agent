@@ -3234,6 +3234,10 @@ id italic
 id item_touch_helper_previous_elevation
 id jumpToEnd
 id jumpToStart
+id label1Button
+id label1Result
+id label2Button
+id label2Result
 id labeled
 id layout
 id left
@@ -3344,14 +3348,14 @@ id pin
 id position
 id postLayout
 id pressed
-id progressBar
 id progress_circular
 id progress_horizontal
+id rackButton
+id rackResult
 id radio
 id ratio
 id rectangles
 id resetButton
-id resultTextView
 id reverseSawtooth
 id right
 id rightToLeft

@@ -25,11 +25,16 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var captureButton: Button
     private lateinit var settingsButton: Button
-    private lateinit var resultTextView: TextView
-    private lateinit var progressBar: ProgressBar
+    private lateinit var rackButton: Button
+    private lateinit var label1Button: Button
+    private lateinit var label2Button: Button
+    private lateinit var rackResult: TextView
+    private lateinit var label1Result: TextView
+    private lateinit var label2Result: TextView
     
     private lateinit var apiService: OCRApiService
     private var currentPhotoUri: android.net.Uri? = null
+    private var currentResultView: TextView? = null  // Track which result box to fill
     
     companion object {
         private const val CAMERA_REQUEST_CODE = 100
@@ -48,14 +53,15 @@ class MainActivity : AppCompatActivity() {
         // Initialize UI components
         captureButton = findViewById(R.id.captureButton)
         settingsButton = findViewById(R.id.settingsButton)
-        resultTextView = findViewById(R.id.resultTextView)
-        progressBar = findViewById(R.id.progressBar)
+        rackButton = findViewById(R.id.rackButton)
+        label1Button = findViewById(R.id.label1Button)
+        label2Button = findViewById(R.id.label2Button)
+        rackResult = findViewById(R.id.rackResult)
+        label1Result = findViewById(R.id.label1Result)
+        label2Result = findViewById(R.id.label2Result)
 
         // Check and request permissions
-        if (allPermissionsGranted()) {
-            resultTextView.text = "Ready to capture photo"
-        } else {
-            resultTextView.text = "Requesting permissions..."
+        if (!allPermissionsGranted()) {
             ActivityCompat.requestPermissions(
                 this,
                 REQUIRED_PERMISSIONS,
@@ -65,6 +71,28 @@ class MainActivity : AppCompatActivity() {
 
         // Set capture button listener
         captureButton.setOnClickListener {
+            currentResultView = null
+            launchCameraPhotoCapture()
+        }
+
+        // Set Rack button listener
+        rackButton.setOnClickListener {
+            currentResultView = rackResult
+            rackResult.text = "Processing..."
+            launchCameraPhotoCapture()
+        }
+
+        // Set Label_1 button listener
+        label1Button.setOnClickListener {
+            currentResultView = label1Result
+            label1Result.text = "Processing..."
+            launchCameraPhotoCapture()
+        }
+
+        // Set Label_2 button listener
+        label2Button.setOnClickListener {
+            currentResultView = label2Result
+            label2Result.text = "Processing..."
             launchCameraPhotoCapture()
         }
 
@@ -81,7 +109,6 @@ class MainActivity : AppCompatActivity() {
         // Check permissions first
         if (!allPermissionsGranted()) {
             Log.e("ImageTText", "Permissions not granted")
-            resultTextView.text = "Requesting camera permission..."
             ActivityCompat.requestPermissions(
                 this,
                 REQUIRED_PERMISSIONS,
@@ -92,15 +119,14 @@ class MainActivity : AppCompatActivity() {
 
         try {
             Log.d("ImageTText", "Creating camera intent - Option 1: Raw Bitmap Photo (RealWear style)")
-            // Option 1: Raw Bitmap Photo - Simple approach, no storage permissions needed
-            // Following RealWear's CameraActivity.java example
             val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-            resultTextView.text = "Opening camera..."
             startActivityForResult(intent, CAMERA_REQUEST_CODE)
             Log.d("ImageTText", "Camera intent started")
         } catch (e: Exception) {
             Log.e("ImageTText", "Error launching camera: ${e.message}", e)
-            resultTextView.text = "Error: ${e.message}"
+            if (currentResultView != null) {
+                currentResultView!!.text = "Error: ${e.message}"
+            }
         }
     }
 
@@ -115,8 +141,6 @@ class MainActivity : AppCompatActivity() {
                 
                 if (photo != null) {
                     Log.d("ImageTText", "Photo received, size: ${photo.width}x${photo.height}")
-                    resultTextView.text = "Photo captured. Processing..."
-                    progressBar.visibility = View.VISIBLE
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         try {
@@ -136,30 +160,40 @@ class MainActivity : AppCompatActivity() {
                                 sendImageToOCR(tempFile)
                             } else {
                                 runOnUiThread {
-                                    progressBar.visibility = View.GONE
-                                    resultTextView.text = "Error: Photo file creation failed"
+                                    val resultView = currentResultView
+                                    if (resultView != null) {
+                                        resultView.text = "Error: Photo file creation failed"
+                                    }
                                     Log.e("ImageTText", "Temp file not created or empty")
                                 }
                             }
                         } catch (e: Exception) {
                             Log.e("ImageTText", "Error saving bitmap: ${e.message}", e)
                             runOnUiThread {
-                                progressBar.visibility = View.GONE
-                                resultTextView.text = "Error saving photo: ${e.message}"
+                                val resultView = currentResultView
+                                if (resultView != null) {
+                                    resultView.text = "Error saving photo: ${e.message}"
+                                }
                             }
                         }
                     }
                 } else {
                     Log.e("ImageTText", "No photo data received")
-                    resultTextView.text = "Error: No photo data received from camera"
+                    if (currentResultView != null) {
+                        currentResultView!!.text = "Error: No photo data received"
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("ImageTText", "Error processing photo: ${e.message}", e)
-                resultTextView.text = "Error: ${e.message}"
+                if (currentResultView != null) {
+                    currentResultView!!.text = "Error: ${e.message}"
+                }
             }
         } else {
             Log.d("ImageTText", "Camera cancelled or failed")
-            resultTextView.text = "Camera cancelled"
+            if (currentResultView != null) {
+                currentResultView!!.text = "Cancelled"
+            }
         }
     }
 
@@ -168,18 +202,21 @@ class MainActivity : AppCompatActivity() {
             val result = apiService.extractTextFromImage(imageFile)
 
             runOnUiThread {
-                progressBar.visibility = View.GONE
-
-                if (result != null && result.isNotEmpty()) {
-                    resultTextView.text = result
-                } else {
-                    resultTextView.text = "No text detected in image"
+                val resultView = currentResultView
+                if (resultView != null) {
+                    if (result != null && result.isNotEmpty()) {
+                        resultView.text = result
+                    } else {
+                        resultView.text = "No text detected"
+                    }
                 }
             }
         } catch (e: Exception) {
             runOnUiThread {
-                progressBar.visibility = View.GONE
-                resultTextView.text = "Error processing image: ${e.message}"
+                val resultView = currentResultView
+                if (resultView != null) {
+                    resultView.text = "Error: ${e.message}"
+                }
             }
         }
     }
@@ -193,10 +230,8 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 Log.d("ImageTText", "All permissions granted")
-                resultTextView.text = "Ready to capture photo"
             } else {
                 Log.d("ImageTText", "Some permissions denied")
-                resultTextView.text = "Permissions required. Please enable camera and storage permissions."
             }
         }
     }
