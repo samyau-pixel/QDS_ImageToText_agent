@@ -37,15 +37,39 @@
 
     </HorizontalScrollView>
 
-    <!-- Close Button -->
-    <Button
-        android:id="@+id/closeButton"
+    <!-- Bottom Buttons -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:text="Close"
-        android:textSize="14sp"
-        android:background="@android:color/holo_blue_bright"
-        android:textColor="@android:color/white"
-        android:layout_marginTop="16dp" />
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:spacing="4dp"
+        android:layout_marginTop="16dp"
+        android:layout_margin="4dp">
+
+        <!-- Send Button -->
+        <Button
+            android:id="@+id/sendButton"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:text="Send"
+            android:textSize="14sp"
+            android:layout_margin="2dp"
+            android:background="@drawable/button_send"
+            android:textColor="@android:color/white" />
+
+        <!-- Close Button -->
+        <Button
+            android:id="@+id/closeButton"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:text="Close"
+            android:textSize="14sp"
+            android:layout_margin="2dp"
+            android:background="@drawable/button_close"
+            android:textColor="@android:color/white" />
+
+    </LinearLayout>
 
 </LinearLayout>

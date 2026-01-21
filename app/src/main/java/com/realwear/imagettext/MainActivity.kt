@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit
 class MainActivity : AppCompatActivity() {
 
     private lateinit var settingsButton: Button
-    private lateinit var sendButton: Button
     private lateinit var saveButton: Button
     private lateinit var previewButton: Button
     private lateinit var rackButton: Button
@@ -64,6 +63,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Hide the action bar
+        supportActionBar?.hide()
+        
         setContentView(R.layout.activity_main)
 
         // Initialize API service with saved API key
@@ -84,7 +87,6 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize UI components
         settingsButton = findViewById(R.id.settingsButton)
-        sendButton = findViewById(R.id.sendButton)
         saveButton = findViewById(R.id.saveButton)
         previewButton = findViewById(R.id.previewButton)
         rackButton = findViewById(R.id.rackButton)
@@ -122,11 +124,6 @@ class MainActivity : AppCompatActivity() {
             currentResultView = label2Result
             label2Result.setText("Processing...")
             launchCameraPhotoCapture()
-        }
-
-        // Set Send to Storage button listener
-        sendButton.setOnClickListener {
-            exportAndSendCSV()
         }
 
         // Set Save button listener

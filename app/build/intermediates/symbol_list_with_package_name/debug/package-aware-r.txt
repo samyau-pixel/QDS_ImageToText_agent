@@ -2909,7 +2909,11 @@ drawable btn_radio_off_mtrl
 drawable btn_radio_off_to_on_mtrl_animation
 drawable btn_radio_on_mtrl
 drawable btn_radio_on_to_off_mtrl_animation
+drawable button_close
+drawable button_label1
+drawable button_label2
 drawable button_preview
+drawable button_rack
 drawable button_save
 drawable button_send
 drawable button_settings
@@ -2918,6 +2922,8 @@ drawable design_ic_visibility
 drawable design_ic_visibility_off
 drawable design_password_eye
 drawable design_snackbar_background
+drawable edittext_dark
+drawable edittext_light
 drawable ic_arrow_back_black_24
 drawable ic_clear_black_24
 drawable ic_clock_black_24dp
