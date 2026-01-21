@@ -77,15 +77,18 @@ class CSVManager(private val context: Context) {
         return try {
             val timestamp = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.US).format(Date())
             
-            // Build CSV entry with all field values
+            // Build CSV entry with all field values and their corresponding photo columns
             val values = mutableListOf<String>()
             for ((fieldName, fieldValue) in fieldValues) {
-                val photoName = fieldPhotoPaths[fieldName]?.let { File(it).name } ?: ""
+                // Add field value
                 values.add("\"$fieldValue\"")
-                if (photoName.isNotEmpty()) {
-                    values.add("\"$photoName\"")
-                }
+                
+                // Always add photo column (empty if no photo)
+                val photoName = fieldPhotoPaths[fieldName]?.let { File(it).name } ?: ""
+                values.add("\"$photoName\"")
             }
+            
+            // Add timestamp
             values.add("\"$timestamp\"")
             
             val entry = values.joinToString(",") + "\n"
