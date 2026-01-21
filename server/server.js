@@ -21,20 +21,19 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configure multer for file uploads (allows multiple file types)
+// Configure multer for temporary uploads (we'll move to batch folders later)
+const tempDir = path.join(__dirname, 'temp_uploads');
+if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, uploadsDir);
+        cb(null, tempDir);
     },
     filename: (req, file, cb) => {
-        // For photos, keep original filename without prefix
-        // For CSV files, add timestamp prefix for organization
-        if (file.fieldname === 'photos') {
-            cb(null, file.originalname);
-        } else {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            cb(null, `${timestamp}_${file.originalname}`);
-        }
+        // Keep original filenames
+        cb(null, file.originalname);
     }
 });
 
@@ -51,27 +50,49 @@ app.post('/upload', upload.any(), (req, res) => {
         console.log('=== Upload Request Received ===');
         console.log('Files count:', req.files ? req.files.length : 0);
         
+        // Create a timestamped folder for this batch
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const batchFolder = path.join(uploadsDir, `batch_${timestamp}`);
+        
+        if (!fs.existsSync(batchFolder)) {
+            fs.mkdirSync(batchFolder, { recursive: true });
+            console.log(`Created batch folder: ${batchFolder}`);
+        }
+        
         let csvFile = null;
         let photoFiles = [];
         
         if (req.files && req.files.length > 0) {
             req.files.forEach(file => {
                 console.log(`  File: ${file.fieldname} -> ${file.filename} (${file.size} bytes)`);
-                if (file.fieldname === 'csv_file') {
-                    csvFile = file;
-                } else if (file.fieldname === 'photos') {
-                    photoFiles.push(file);
+                
+                // Move file from temp to batch folder
+                const oldPath = file.path;
+                const newPath = path.join(batchFolder, file.filename);
+                
+                try {
+                    fs.renameSync(oldPath, newPath);
+                    console.log(`  Moved to: ${newPath}`);
+                    
+                    if (file.fieldname === 'csv_file') {
+                        csvFile = { ...file, path: newPath };
+                    } else if (file.fieldname === 'photos') {
+                        photoFiles.push({ ...file, path: newPath });
+                    }
+                } catch (err) {
+                    console.error(`  Error moving file: ${err.message}`);
                 }
             });
         }
         
         console.log('Device name:', req.body.device_name);
         console.log('Timestamp:', req.body.timestamp);
-        console.log(`Summary: CSV=${csvFile ? 'yes' : 'no'}, Photos=${photoFiles.length}`);
+        console.log(`Summary: Batch=${timestamp}, CSV=${csvFile ? 'yes' : 'no'}, Photos=${photoFiles.length}`);
         
         res.json({
             success: true,
             message: 'Files uploaded successfully',
+            batch_folder: `batch_${timestamp}`,
             csv_file: csvFile ? csvFile.filename : null,
             photo_count: photoFiles.length,
             photos: photoFiles.map(f => f.filename),
@@ -88,18 +109,35 @@ app.post('/upload', upload.any(), (req, res) => {
     }
 });
 
-// Get list of all CSV files
+// Get list of all CSV files (from batch folders)
 app.get('/api/files', (req, res) => {
     try {
-        const files = fs.readdirSync(uploadsDir).map(filename => {
-            const filepath = path.join(uploadsDir, filename);
-            const stats = fs.statSync(filepath);
-            return {
-                filename: filename,
-                size: stats.size,
-                modified: stats.mtime
-            };
-        });
+        const files = [];
+        
+        // Read all batch folders
+        const items = fs.readdirSync(uploadsDir);
+        
+        for (const item of items) {
+            const itemPath = path.join(uploadsDir, item);
+            const stats = fs.statSync(itemPath);
+            
+            // If it's a batch folder
+            if (stats.isDirectory() && item.startsWith('batch_')) {
+                // Look for CSV files inside
+                const csvFiles = fs.readdirSync(itemPath).filter(f => f.endsWith('.csv'));
+                
+                for (const csvFile of csvFiles) {
+                    const csvPath = path.join(itemPath, csvFile);
+                    const csvStats = fs.statSync(csvPath);
+                    files.push({
+                        filename: csvFile,
+                        batch: item,
+                        size: csvStats.size,
+                        modified: csvStats.mtime
+                    });
+                }
+            }
+        }
         
         res.json({
             success: true,
@@ -111,9 +149,9 @@ app.get('/api/files', (req, res) => {
 });
 
 // Get specific CSV file content
-app.get('/api/files/:filename', (req, res) => {
+app.get('/api/files/:batch/:filename', (req, res) => {
     try {
-        const filepath = path.join(uploadsDir, req.params.filename);
+        const filepath = path.join(uploadsDir, req.params.batch, req.params.filename);
         
         // Security check - prevent directory traversal
         if (!filepath.startsWith(uploadsDir)) {
@@ -124,6 +162,7 @@ app.get('/api/files/:filename', (req, res) => {
         res.json({
             success: true,
             filename: req.params.filename,
+            batch: req.params.batch,
             content: content
         });
     } catch (err) {
@@ -132,9 +171,9 @@ app.get('/api/files/:filename', (req, res) => {
 });
 
 // Download CSV file
-app.get('/download/:filename', (req, res) => {
+app.get('/download/:batch/:filename', (req, res) => {
     try {
-        const filepath = path.join(uploadsDir, req.params.filename);
+        const filepath = path.join(uploadsDir, req.params.batch, req.params.filename);
         
         // Security check
         if (!filepath.startsWith(uploadsDir)) {

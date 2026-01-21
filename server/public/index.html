@@ -330,25 +330,25 @@
             fileList.innerHTML = files.map((file, index) => {
                 const date = new Date(file.modified).toLocaleString();
                 return `
-                    <li class="file-item ${selectedFile?.filename === file.filename ? 'active' : ''}" 
-                        onclick="selectFile('${file.filename}')">
+                    <li class="file-item ${selectedFile?.filename === file.filename && selectedFile?.batch === file.batch ? 'active' : ''}" 
+                        onclick="selectFile('${file.filename}', '${file.batch}')">
                         <div class="file-name">${file.filename}</div>
                         <div class="file-meta">
-                            ${(file.size / 1024).toFixed(2)} KB • ${date}
+                            Batch: ${file.batch} • ${(file.size / 1024).toFixed(2)} KB • ${date}
                         </div>
                     </li>
                 `;
             }).join('');
         }
         
-        async function selectFile(filename) {
-            selectedFile = { filename };
+        async function selectFile(filename, batch) {
+            selectedFile = { filename, batch };
             renderFileList();
             
             try {
                 document.getElementById('csvContent').innerHTML = '<div class="loading"><div class="spinner"></div>Loading...</div>';
                 
-                const response = await fetch(`/api/files/${filename}`);
+                const response = await fetch(`/api/files/${batch}/${filename}`);
                 const data = await response.json();
                 
                 if (data.success) {
@@ -381,8 +381,9 @@
                         
                         // Check if this cell contains a photo filename (ends with .jpg)
                         if (cleanCell.endsWith('.jpg') || cleanCell.endsWith('.jpeg') || cleanCell.endsWith('.png')) {
-                            // Try to load the image from the uploads directory
-                            html += `<td><img src="/uploads/${cleanCell}" alt="Photo" style="max-width: 150px; max-height: 150px; border-radius: 4px; cursor: pointer;" onclick="viewImageLarge('${cleanCell}')"></td>`;
+                            // Load image from batch folder
+                            const imageUrl = `/uploads/${selectedFile.batch}/${cleanCell}`;
+                            html += `<td><img src="${imageUrl}" alt="Photo" style="max-width: 150px; max-height: 150px; border-radius: 4px; cursor: pointer;" onclick="viewImageLarge('${imageUrl}')"></td>`;
                         } else {
                             html += `<td>${cleanCell}</td>`;
                         }
@@ -417,12 +418,12 @@
             return cells;
         }
         
-        function viewImageLarge(filename) {
+        function viewImageLarge(imageUrl) {
             const modal = document.createElement('div');
             modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;';
             modal.onclick = () => modal.remove();
             const img = document.createElement('img');
-            img.src = `/uploads/${filename}`;
+            img.src = imageUrl;
             img.style.cssText = 'max-width:90vw;max-height:90vh;border-radius:8px;';
             img.onclick = (e) => e.stopPropagation();
             modal.appendChild(img);
@@ -431,7 +432,7 @@
         
         function downloadFile() {
             if (selectedFile) {
-                window.location.href = `/download/${selectedFile.filename}`;
+                window.location.href = `/download/${selectedFile.batch}/${selectedFile.filename}`;
             }
         }
         
