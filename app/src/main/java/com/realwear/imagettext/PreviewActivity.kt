@@ -54,7 +54,7 @@ class PreviewActivity : AppCompatActivity() {
                     val headerCell = TextView(this)
                     headerCell.text = header.trim().replace("\"", "")
                     headerCell.setPadding(8, 8, 8, 8)
-                    headerCell.setBackgroundColor(0xFF9C27B0.toInt()) // Purple background
+                    headerCell.background = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.table_header_cell)
                     headerCell.setTextColor(0xFFFFFFFF.toInt()) // White text
                     headerCell.textSize = 12f
                     headerRow.addView(headerCell)
@@ -70,13 +70,18 @@ class PreviewActivity : AppCompatActivity() {
                 val dataRow = TableRow(this)
                 dataRow.isClickable = true
                 
+                // Alternate row background colors for better readability
+                val isEvenRow = (i - 1) % 2 == 0
+                val cellBackground = if (isEvenRow) {
+                    androidx.core.content.ContextCompat.getDrawable(this, R.drawable.table_cell_white)
+                } else {
+                    androidx.core.content.ContextCompat.getDrawable(this, R.drawable.table_cell_blue)
+                }
+                
                 // Parse CSV line carefully to handle quoted values
                 val cells = parseCSVLine(line)
                 
-                for (cell in cells) {
-                    val cleanCell = cell.trim().replace("\"", "")
-                    
-                    // Check if cell contains a photo filename
+                for (cleanCell in cells) {
                     if (cleanCell.endsWith(".jpg", ignoreCase = true) || 
                         cleanCell.endsWith(".jpeg", ignoreCase = true) || 
                         cleanCell.endsWith(".png", ignoreCase = true)) {
@@ -97,7 +102,7 @@ class PreviewActivity : AppCompatActivity() {
                                 val textView = TextView(this)
                                 textView.text = cleanCell
                                 textView.setPadding(8, 8, 8, 8)
-                                textView.setBackgroundColor(0xFFEEEEEE.toInt())
+                                textView.background = cellBackground
                                 textView.setTextColor(0xFF000000.toInt())
                                 textView.textSize = 11f
                                 dataRow.addView(textView)
@@ -107,7 +112,7 @@ class PreviewActivity : AppCompatActivity() {
                             val textView = TextView(this)
                             textView.text = cleanCell
                             textView.setPadding(8, 8, 8, 8)
-                            textView.setBackgroundColor(0xFFEEEEEE.toInt())
+                            textView.background = cellBackground
                             textView.setTextColor(0xFF000000.toInt())
                             textView.textSize = 11f
                             dataRow.addView(textView)
@@ -117,7 +122,7 @@ class PreviewActivity : AppCompatActivity() {
                         val cellView = TextView(this)
                         cellView.text = cleanCell
                         cellView.setPadding(8, 8, 8, 8)
-                        cellView.setBackgroundColor(0xFFEEEEEE.toInt())
+                        cellView.background = cellBackground
                         cellView.setTextColor(0xFF000000.toInt())
                         cellView.textSize = 11f
                         cellView.setOnClickListener {

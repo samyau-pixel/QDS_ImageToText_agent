@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var captureButton: Button
     private lateinit var settingsButton: Button
     private lateinit var sendButton: Button
     private lateinit var saveButton: Button
@@ -84,7 +83,6 @@ class MainActivity : AppCompatActivity() {
             .build()
 
         // Initialize UI components
-        captureButton = findViewById(R.id.captureButton)
         settingsButton = findViewById(R.id.settingsButton)
         sendButton = findViewById(R.id.sendButton)
         saveButton = findViewById(R.id.saveButton)
@@ -103,12 +101,6 @@ class MainActivity : AppCompatActivity() {
                 REQUIRED_PERMISSIONS,
                 PERMISSION_REQUEST_CODE
             )
-        }
-
-        // Set capture button listener
-        captureButton.setOnClickListener {
-            currentResultView = null
-            launchCameraPhotoCapture()
         }
 
         // Set Rack button listener

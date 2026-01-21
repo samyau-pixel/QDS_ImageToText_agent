@@ -1,7 +1,13 @@
 R_DEF: Internal format may change without notice
 local
+drawable button_preview
+drawable button_save
+drawable button_send
+drawable button_settings
+drawable table_cell_blue
+drawable table_cell_white
+drawable table_header_cell
 id apiKeyEditText
-id captureButton
 id closeButton
 id dataTable
 id label1Button
