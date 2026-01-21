@@ -220,6 +220,30 @@ app.get('/download-batch/:batch', (req, res) => {
     }
 });
 
+// Delete entire batch folder
+app.delete('/api/batch/:batch', (req, res) => {
+    try {
+        const batchPath = path.join(uploadsDir, req.params.batch);
+        
+        // Security check
+        if (!batchPath.startsWith(uploadsDir) || !fs.existsSync(batchPath)) {
+            return res.status(403).json({ success: false, error: 'Access denied or batch not found' });
+        }
+        
+        // Remove the batch folder recursively
+        fs.rmSync(batchPath, { recursive: true, force: true });
+        console.log(`Deleted batch folder: ${batchPath}`);
+        
+        res.json({
+            success: true,
+            message: 'Batch folder deleted successfully'
+        });
+    } catch (err) {
+        console.error('Delete error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`CSV Server running on http://0.0.0.0:${PORT}`);

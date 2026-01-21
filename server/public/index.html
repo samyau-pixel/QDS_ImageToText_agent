@@ -444,11 +444,24 @@
         }
         
         async function deleteFile() {
-            if (!selectedFile || !confirm('Delete this file?')) return;
+            if (!selectedFile || !confirm('Delete this batch folder and all its contents?')) return;
             
             try {
-                // Since we don't have a delete endpoint, just refresh
-                showSuccess('File deletion not implemented yet');
+                const response = await fetch(`/api/batch/${selectedFile.batch}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess('Batch deleted successfully');
+                    selectedFile = null;
+                    document.getElementById('csvContent').innerHTML = '<div class="no-selection">Select a file to view its contents</div>';
+                    document.getElementById('actions').style.display = 'none';
+                    await loadFiles();  // Reload the file list
+                } else {
+                    showError('Error: ' + data.error);
+                }
             } catch (err) {
                 showError('Error: ' + err.message);
             }
