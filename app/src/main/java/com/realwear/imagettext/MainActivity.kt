@@ -35,6 +35,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var captureButton: Button
     private lateinit var settingsButton: Button
     private lateinit var sendButton: Button
+    private lateinit var saveButton: Button
+    private lateinit var previewButton: Button
     private lateinit var rackButton: Button
     private lateinit var label1Button: Button
     private lateinit var label2Button: Button
@@ -44,9 +46,15 @@ class MainActivity : AppCompatActivity() {
     
     private lateinit var apiService: OCRApiService
     private lateinit var httpClient: OkHttpClient
+    private lateinit var csvManager: CSVManager
     private var currentPhotoUri: android.net.Uri? = null
     private var currentResultView: EditText? = null  // Track which result box to fill
     private var serverURL: String = ""
+    
+    // Track photo paths for current session
+    private var rackPhotoPath: String? = null
+    private var label1PhotoPath: String? = null
+    private var label2PhotoPath: String? = null
     
     companion object {
         private const val CAMERA_REQUEST_CODE = 100
@@ -61,6 +69,7 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize API service with saved API key
         apiService = OCRApiService(this)
+        csvManager = CSVManager(this)
         
         // Load server URL from settings
         val serverIP = SettingsManager.getServerIP(this)
@@ -78,6 +87,8 @@ class MainActivity : AppCompatActivity() {
         captureButton = findViewById(R.id.captureButton)
         settingsButton = findViewById(R.id.settingsButton)
         sendButton = findViewById(R.id.sendButton)
+        saveButton = findViewById(R.id.saveButton)
+        previewButton = findViewById(R.id.previewButton)
         rackButton = findViewById(R.id.rackButton)
         label1Button = findViewById(R.id.label1Button)
         label2Button = findViewById(R.id.label2Button)
@@ -124,6 +135,16 @@ class MainActivity : AppCompatActivity() {
         // Set Send to Storage button listener
         sendButton.setOnClickListener {
             exportAndSendCSV()
+        }
+
+        // Set Save button listener
+        saveButton.setOnClickListener {
+            saveCurrentEntry()
+        }
+
+        // Set Preview button listener
+        previewButton.setOnClickListener {
+            showPreview()
         }
 
         // Set settings button listener
@@ -174,27 +195,38 @@ class MainActivity : AppCompatActivity() {
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         try {
-                            // Save bitmap to temporary file with high quality
-                            val tempFile = File(cacheDir, "temp_photo_${System.currentTimeMillis()}.jpg")
-                            Log.d("ImageTText", "Saving photo to: ${tempFile.absolutePath}")
+                            // Determine which field this photo is for
+                            val fieldName = when (currentResultView) {
+                                rackResult -> "rack"
+                                label1Result -> "label1"
+                                label2Result -> "label2"
+                                else -> "general"
+                            }
                             
-                            val fos = FileOutputStream(tempFile)
-                            val success = photo.compress(Bitmap.CompressFormat.JPEG, 95, fos)
-                            fos.close()
+                            // Save photo to persistent storage with meaningful name
+                            val timestamp = System.currentTimeMillis()
+                            val photoFilename = "${fieldName}_photo_$timestamp.jpg"
+                            val photoFile = csvManager.savePhoto(photo, photoFilename)
                             
-                            Log.d("ImageTText", "Bitmap compressed: $success")
-                            Log.d("ImageTText", "File size: ${tempFile.length()} bytes")
-                            
-                            if (tempFile.exists() && tempFile.length() > 0) {
-                                Log.d("ImageTText", "Temp file created successfully, sending to OCR")
-                                sendImageToOCR(tempFile)
+                            if (photoFile != null) {
+                                Log.d("ImageTText", "Photo saved to: ${photoFile.absolutePath}")
+                                
+                                // Track the photo path based on which field it's for
+                                when (currentResultView) {
+                                    rackResult -> rackPhotoPath = photoFile.absolutePath
+                                    label1Result -> label1PhotoPath = photoFile.absolutePath
+                                    label2Result -> label2PhotoPath = photoFile.absolutePath
+                                }
+                                
+                                // Send to OCR for text extraction
+                                sendImageToOCR(photoFile)
                             } else {
                                 runOnUiThread {
                                     val resultView = currentResultView
                                     if (resultView != null) {
-                                        resultView.setText("Error: Photo file creation failed")
+                                        resultView.setText("Error: Photo save failed")
                                     }
-                                    Log.e("ImageTText", "Temp file not created or empty")
+                                    Log.e("ImageTText", "Failed to save photo")
                                 }
                             }
                         } catch (e: Exception) {
@@ -266,48 +298,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun exportAndSendCSV() {
-        Log.d("ImageTText", "exportAndSendCSV called")
-        
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                // Create CSV content
-                val csvContent = StringBuilder()
-                csvContent.append("Field,Value\n")
-                csvContent.append("Timestamp,${getCurrentTimestamp()}\n")
-                csvContent.append("Rack,${rackResult.text}\n")
-                csvContent.append("Label_1,${label1Result.text}\n")
-                csvContent.append("Label_2,${label2Result.text}\n")
-                
-                // Create temporary CSV file
-                val csvFile = File(cacheDir, "data_${System.currentTimeMillis()}.csv")
-                csvFile.writeText(csvContent.toString())
-                
-                Log.d("ImageTText", "CSV file created: ${csvFile.absolutePath}")
-                Log.d("ImageTText", "CSV content:\n$csvContent")
-                
-                // Upload to server
-                uploadCSVToServer(csvFile)
-                
-            } catch (e: Exception) {
-                Log.e("ImageTText", "Error exporting CSV: ${e.message}", e)
-                runOnUiThread {
-                    Toast.makeText(this@MainActivity, "Error exporting CSV: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    private fun uploadCSVToServer(csvFile: File) {
+    private fun uploadCSVToServer(csvFile: File): Boolean {
+        var uploadSuccess = false
         try {
-            Log.d("ImageTText", "Uploading CSV to: $serverURL")
+            Log.d("ImageTText", "Uploading CSV and photos to: $serverURL")
             
-            val requestBody = MultipartBody.Builder()
+            val requestBodyBuilder = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("csv_file", csvFile.name, csvFile.asRequestBody("text/csv".toMediaTypeOrNull()))
                 .addFormDataPart("device_name", "RealWear-ImageTText")
                 .addFormDataPart("timestamp", getCurrentTimestamp())
-                .build()
+            
+            // Add all photos from the photo directory
+            val photoDir = csvManager.getPhotoDirectory()
+            if (photoDir.exists() && photoDir.isDirectory) {
+                val photoFiles = photoDir.listFiles()
+                if (photoFiles != null) {
+                    for (photoFile in photoFiles) {
+                        if (photoFile.isFile && photoFile.name.endsWith(".jpg")) {
+                            Log.d("ImageTText", "Adding photo to upload: ${photoFile.name}")
+                            requestBodyBuilder.addFormDataPart(
+                                "photos",
+                                photoFile.name,
+                                photoFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
+                            )
+                        }
+                    }
+                }
+            }
+            
+            val requestBody = requestBodyBuilder.build()
             
             val request = Request.Builder()
                 .url(serverURL)
@@ -319,12 +339,14 @@ class MainActivity : AppCompatActivity() {
             Log.d("ImageTText", "Upload response code: ${response.code}")
             Log.d("ImageTText", "Upload response: ${response.body?.string()}")
             
+            uploadSuccess = response.isSuccessful
+            
             runOnUiThread {
                 if (response.isSuccessful) {
-                    Toast.makeText(this, "Data sent successfully!", Toast.LENGTH_SHORT).show()
-                    Log.d("ImageTText", "CSV uploaded successfully")
+                    Toast.makeText(this@MainActivity, "Data sent successfully!", Toast.LENGTH_SHORT).show()
+                    Log.d("ImageTText", "CSV and photos uploaded successfully")
                 } else {
-                    Toast.makeText(this, "Upload failed: ${response.code}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Upload failed: ${response.code}", Toast.LENGTH_SHORT).show()
                     Log.e("ImageTText", "Upload failed with code: ${response.code}")
                 }
             }
@@ -333,14 +355,108 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("ImageTText", "Error uploading CSV: ${e.message}", e)
             runOnUiThread {
-                Toast.makeText(this, "Error uploading: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, "Error uploading: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
+        return uploadSuccess
     }
 
     private fun getCurrentTimestamp(): String {
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
         return sdf.format(Date())
+    }
+
+    private fun saveCurrentEntry() {
+        try {
+            val rackNumber = rackResult.text.toString().trim()
+            val label1 = label1Result.text.toString().trim()
+            val label2 = label2Result.text.toString().trim()
+            
+            if (rackNumber.isEmpty() && label1.isEmpty() && label2.isEmpty()) {
+                Toast.makeText(this, "Please enter at least one value", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
+            // Add entry to CSV
+            val success = csvManager.addEntry(
+                rackNumber = rackNumber,
+                label1 = label1,
+                label1PhotoPath = label1PhotoPath,
+                label2 = label2,
+                label2PhotoPath = label2PhotoPath
+            )
+            
+            if (success) {
+                Toast.makeText(this, "Entry saved!", Toast.LENGTH_SHORT).show()
+                clearCurrentEntry()
+            } else {
+                Toast.makeText(this, "Error saving entry", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Log.e("ImageTText", "Error saving entry: ${e.message}", e)
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun clearCurrentEntry() {
+        rackResult.setText("")
+        label1Result.setText("")
+        label2Result.setText("")
+        rackPhotoPath = null
+        label1PhotoPath = null
+        label2PhotoPath = null
+        Log.d("ImageTText", "Current entry cleared")
+    }
+
+    private fun showPreview() {
+        try {
+            if (!csvManager.hasEntries()) {
+                Toast.makeText(this, "No data to preview", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
+            val intent = Intent(this, PreviewActivity::class.java)
+            startActivity(intent)
+            Log.d("ImageTText", "Preview activity launched")
+        } catch (e: Exception) {
+            Log.e("ImageTText", "Error showing preview: ${e.message}", e)
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun exportAndSendCSV() {
+        try {
+            if (!csvManager.hasEntries()) {
+                Toast.makeText(this, "No data to send", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val csvFile = csvManager.getCSVFile()
+                    val uploadSuccess = uploadCSVToServer(csvFile)
+                    
+                    if (uploadSuccess) {
+                        runOnUiThread {
+                            // Clear everything only after successful upload
+                            csvManager.clearAll()
+                            clearCurrentEntry()
+                            Toast.makeText(this@MainActivity, "Data cleared for next batch", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Log.w("ImageTText", "Upload failed - keeping data for retry")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ImageTText", "Error in export flow: ${e.message}", e)
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ImageTText", "Error exporting: ${e.message}", e)
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {

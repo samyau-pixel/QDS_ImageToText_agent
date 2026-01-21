@@ -3121,6 +3121,7 @@ id clear_text
 id clip_horizontal
 id clip_vertical
 id clockwise
+id closeButton
 id closest
 id collapseActionView
 id compatible
@@ -3140,6 +3141,7 @@ id currentState
 id custom
 id customPanel
 id cut
+id dataTable
 id date_picker_actions
 id decelerate
 id decelerateAndComplete
@@ -3348,6 +3350,7 @@ id pin
 id position
 id postLayout
 id pressed
+id previewButton
 id progress_circular
 id progress_horizontal
 id rackButton
@@ -3625,6 +3628,7 @@ layout abc_search_view
 layout abc_select_dialog_material
 layout abc_tooltip
 layout activity_main
+layout activity_preview
 layout activity_settings
 layout custom_dialog
 layout design_bottom_navigation_item

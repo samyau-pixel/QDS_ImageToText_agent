@@ -46,6 +46,11 @@
             android:exported="false"
             android:parentActivityName="com.realwear.imagettext.MainActivity"
             android:screenOrientation="landscape" />
+        <activity
+            android:name="com.realwear.imagettext.PreviewActivity"
+            android:exported="false"
+            android:parentActivityName="com.realwear.imagettext.MainActivity"
+            android:screenOrientation="landscape" />
 
         <service
             android:name="androidx.camera.core.impl.MetadataHolderService"

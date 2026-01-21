@@ -141,6 +141,15 @@
             border-bottom: 1px solid #eee;
         }
         
+        td img {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        td img:hover {
+            transform: scale(1.05);
+        }
+        
         tr:hover {
             background: #f9f9f9;
         }
@@ -358,7 +367,7 @@
             let html = '<table>';
             
             lines.forEach((line, index) => {
-                const cells = line.split(',');
+                const cells = parseCSVLine(line);
                 if (index === 0) {
                     html += '<thead><tr>';
                     cells.forEach(cell => {
@@ -367,8 +376,16 @@
                     html += '</tr></thead><tbody>';
                 } else {
                     html += '<tr>';
-                    cells.forEach(cell => {
-                        html += `<td>${cell.trim()}</td>`;
+                    cells.forEach((cell, cellIndex) => {
+                        const cleanCell = cell.trim().replace(/^"|"$/g, '');
+                        
+                        // Check if this cell contains a photo filename (ends with .jpg)
+                        if (cleanCell.endsWith('.jpg') || cleanCell.endsWith('.jpeg') || cleanCell.endsWith('.png')) {
+                            // Try to load the image from the uploads directory
+                            html += `<td><img src="/uploads/${cleanCell}" alt="Photo" style="max-width: 150px; max-height: 150px; border-radius: 4px; cursor: pointer;" onclick="viewImageLarge('${cleanCell}')"></td>`;
+                        } else {
+                            html += `<td>${cleanCell}</td>`;
+                        }
                     });
                     html += '</tr>';
                 }
@@ -376,6 +393,40 @@
             
             html += '</tbody></table>';
             document.getElementById('csvContent').innerHTML = html;
+        }
+        
+        function parseCSVLine(line) {
+            const cells = [];
+            let current = '';
+            let insideQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    insideQuotes = !insideQuotes;
+                    current += char;
+                } else if (char === ',' && !insideQuotes) {
+                    cells.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            cells.push(current);
+            return cells;
+        }
+        
+        function viewImageLarge(filename) {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;';
+            modal.onclick = () => modal.remove();
+            const img = document.createElement('img');
+            img.src = `/uploads/${filename}`;
+            img.style.cssText = 'max-width:90vw;max-height:90vh;border-radius:8px;';
+            img.onclick = (e) => e.stopPropagation();
+            modal.appendChild(img);
+            document.body.appendChild(modal);
         }
         
         function downloadFile() {

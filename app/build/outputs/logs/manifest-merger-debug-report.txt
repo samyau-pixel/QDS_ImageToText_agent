@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-38:12
-INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-38:12
-INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-38:12
-INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-38:12
+ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-44:12
+INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-44:12
+INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-44:12
+INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:2:1-44:12
 MERGED from [com.google.android.material:material:1.9.0] C:\Users\Sam\.gradle\caches\8.9\transforms\9d54a45e79bf7befa7c902d36a10affc\transformed\material-1.9.0\AndroidManifest.xml:17:1-26:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\Sam\.gradle\caches\8.9\transforms\29f5b9f19dc52382d7f75a4d4db657f3\transformed\constraintlayout-2.1.4\AndroidManifest.xml:2:1-11:12
 MERGED from [androidx.camera:camera-view:1.2.3] C:\Users\Sam\.gradle\caches\8.9\transforms\4cc11dd1a9a5ed0c2f16d315de0b63db\transformed\jetified-camera-view-1.2.3\AndroidManifest.xml:17:1-22:12
@@ -75,8 +75,8 @@ ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:10:5-12:35
 	android:name
 		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:11:9-47
 application
-ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:14:5-36:19
-INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:14:5-36:19
+ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:14:5-42:19
+INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:14:5-42:19
 MERGED from [com.google.android.material:material:1.9.0] C:\Users\Sam\.gradle\caches\8.9\transforms\9d54a45e79bf7befa7c902d36a10affc\transformed\material-1.9.0\AndroidManifest.xml:24:5-20
 MERGED from [com.google.android.material:material:1.9.0] C:\Users\Sam\.gradle\caches\8.9\transforms\9d54a45e79bf7befa7c902d36a10affc\transformed\material-1.9.0\AndroidManifest.xml:24:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\Sam\.gradle\caches\8.9\transforms\29f5b9f19dc52382d7f75a4d4db657f3\transformed\constraintlayout-2.1.4\AndroidManifest.xml:9:5-20
@@ -137,6 +137,16 @@ ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:30:9-34:58
 		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:32:13-37
 	android:name
 		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:31:13-45
+activity#com.realwear.imagettext.PreviewActivity
+ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:36:9-40:58
+	android:screenOrientation
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:39:13-50
+	android:parentActivityName
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:40:13-55
+	android:exported
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:38:13-37
+	android:name
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:37:13-44
 uses-sdk
 INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml

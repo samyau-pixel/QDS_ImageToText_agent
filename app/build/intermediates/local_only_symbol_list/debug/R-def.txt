@@ -2,10 +2,13 @@ R_DEF: Internal format may change without notice
 local
 id apiKeyEditText
 id captureButton
+id closeButton
+id dataTable
 id label1Button
 id label1Result
 id label2Button
 id label2Result
+id previewButton
 id rackButton
 id rackResult
 id resetButton
@@ -14,6 +17,7 @@ id sendButton
 id serverIPEditText
 id settingsButton
 layout activity_main
+layout activity_preview
 layout activity_settings
 string app_name
 string capture_button
