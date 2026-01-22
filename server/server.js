@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const archiver = require('archiver');
 const { execSync } = require('child_process');
+const XLSX = require('xlsx');
 
 const app = express();
 const PORT = 3000;
@@ -415,16 +416,50 @@ app.post('/upload-template', upload.single('template'), (req, res) => {
         }
         
         const tempPath = req.file.path;
-        const destPath = path.join(templatesDir, req.file.originalname);
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const baseName = path.basename(req.file.originalname, ext);
         
-        // Move file from temp to templates directory
-        fs.renameSync(tempPath, destPath);
+        let csvFileName = baseName + '.csv';
+        let destPath = path.join(templatesDir, csvFileName);
         
-        res.json({
-            success: true,
-            message: 'Template uploaded successfully',
-            filename: req.file.originalname
-        });
+        try {
+            if (ext === '.xlsx' || ext === '.xls') {
+                // Convert XLSX/XLS to CSV
+                const workbook = XLSX.readFile(tempPath);
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                
+                // Convert to CSV format
+                const csv = XLSX.utils.sheet_to_csv(worksheet);
+                
+                // Write CSV file
+                fs.writeFileSync(destPath, csv);
+                
+                // Delete the uploaded XLSX file
+                fs.unlinkSync(tempPath);
+                
+            } else if (ext === '.csv') {
+                // Move CSV file directly
+                csvFileName = req.file.originalname;
+                destPath = path.join(templatesDir, csvFileName);
+                fs.renameSync(tempPath, destPath);
+            } else {
+                fs.unlinkSync(tempPath);
+                return res.status(400).json({ success: false, error: 'Invalid file type. Only CSV and XLSX are supported.' });
+            }
+            
+            res.json({
+                success: true,
+                message: 'Template uploaded successfully' + (ext === '.xlsx' || ext === '.xls' ? ' and converted to CSV' : ''),
+                filename: csvFileName
+            });
+        } catch (conversionErr) {
+            // Clean up temp file if exists
+            if (fs.existsSync(tempPath)) {
+                fs.unlinkSync(tempPath);
+            }
+            throw conversionErr;
+        }
     } catch (err) {
         console.error('Template upload error:', err);
         res.status(500).json({ success: false, error: err.message });
@@ -449,6 +484,33 @@ app.get('/download-template/:filename', (req, res) => {
         res.download(filepath, filename);
     } catch (err) {
         console.error('Template download error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Delete template
+app.delete('/api/templates/:filename', (req, res) => {
+    try {
+        const filename = req.params.filename;
+        const filepath = path.join(templatesDir, filename);
+        
+        // Security check: prevent directory traversal
+        if (!filepath.startsWith(templatesDir) || !filepath.endsWith('.csv')) {
+            return res.status(403).json({ success: false, error: 'Invalid template name' });
+        }
+        
+        if (!fs.existsSync(filepath)) {
+            return res.status(404).json({ success: false, error: 'Template not found' });
+        }
+        
+        fs.unlinkSync(filepath);
+        
+        res.json({
+            success: true,
+            message: 'Template deleted successfully'
+        });
+    } catch (err) {
+        console.error('Template delete error:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });

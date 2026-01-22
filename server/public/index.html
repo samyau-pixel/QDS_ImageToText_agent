@@ -426,7 +426,7 @@
                 <div class="template-upload">
                     <h3>Upload New Template</h3>
                     <form id="uploadTemplateForm">
-                        <input type="file" id="templateFile" accept=".csv" required />
+                        <input type="file" id="templateFile" accept=".csv,.xlsx,.xls" required />
                         <button type="submit" class="btn-primary">📤 Upload Template</button>
                     </form>
                     <div id="uploadMessage"></div>
@@ -535,11 +535,11 @@
         }
         
         function renderCSVTable(csvContent) {
-            const lines = csvContent.trim().split('\n');
+            // Parse CSV properly, respecting quoted values that may contain newlines
+            const rows = parseCSV(csvContent);
             let html = '<table>';
             
-            lines.forEach((line, index) => {
-                const cells = parseCSVLine(line);
+            rows.forEach((cells, index) => {
                 if (index === 0) {
                     html += '<thead><tr>';
                     cells.forEach(cell => {
@@ -549,7 +549,7 @@
                 } else {
                     html += '<tr>';
                     cells.forEach((cell, cellIndex) => {
-                        const cleanCell = cell.trim().replace(/^"|"$/g, '');
+                        const cleanCell = cell.trim().replace(/^"|"$/g, '').replace(/\\n/g, ' ');
                         
                         // Check if this cell contains a photo filename (ends with .jpg)
                         if (cleanCell.endsWith('.jpg') || cleanCell.endsWith('.jpeg') || cleanCell.endsWith('.png')) {
@@ -568,27 +568,47 @@
             document.getElementById('csvContent').innerHTML = html;
         }
         
-        function parseCSVLine(line) {
-            const cells = [];
+        function parseCSV(csvContent) {
+            const rows = [];
+            let currentRow = [];
             let current = '';
             let insideQuotes = false;
             
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
+            for (let i = 0; i < csvContent.length; i++) {
+                const char = csvContent[i];
                 
                 if (char === '"') {
                     insideQuotes = !insideQuotes;
                     current += char;
                 } else if (char === ',' && !insideQuotes) {
-                    cells.push(current);
+                    currentRow.push(current);
                     current = '';
+                } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+                    if (current || currentRow.length > 0) {
+                        currentRow.push(current);
+                        current = '';
+                    }
+                    if (currentRow.length > 0) {
+                        rows.push(currentRow);
+                        currentRow = [];
+                    }
                 } else {
                     current += char;
                 }
             }
-            cells.push(current);
-            return cells;
+            
+            // Add the last cell and row
+            if (current || currentRow.length > 0) {
+                currentRow.push(current);
+            }
+            if (currentRow.length > 0) {
+                rows.push(currentRow);
+            }
+            
+            return rows;
         }
+        
+
         
         function viewImageLarge(imageUrl) {
             const modal = document.createElement('div');
@@ -702,9 +722,12 @@
                 
                 if (data.templates && data.templates.length > 0) {
                     templatesList.innerHTML = data.templates.map(template => `
-                        <div class="template-item">
-                            <span class="template-name">${template.name}</span>
-                            <small style="color: #999;">${(template.size / 1024).toFixed(2)} KB</small>
+                        <div class="template-item" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="flex: 1;">
+                                <span class="template-name">${template.name}</span>
+                                <small style="color: #999; display: block;">${(template.size / 1024).toFixed(2)} KB</small>
+                            </div>
+                            <button class="btn-delete" onclick="deleteTemplate('${template.name}')" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Delete</button>
                         </div>
                     `).join('');
                 } else {
@@ -712,6 +735,29 @@
                 }
             } catch (err) {
                 templatesList.innerHTML = '<p style="color: #c33; text-align: center; padding: 20px;">Error loading templates</p>';
+            }
+        }
+        
+        async function deleteTemplate(filename) {
+            if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/templates/${encodeURIComponent(filename)}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showTemplateMessage('✓ Template deleted successfully!', 'success');
+                    setTimeout(() => loadTemplates(), 500);
+                } else {
+                    showTemplateMessage('Error: ' + data.error, 'error');
+                }
+            } catch (err) {
+                showTemplateMessage('Error: ' + err.message, 'error');
             }
         }
         
