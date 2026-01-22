@@ -392,6 +392,115 @@
             display: block;
         }
         
+        .ai-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .ai-modal.show {
+            display: flex;
+        }
+        
+        .ai-modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .ai-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 15px;
+        }
+        
+        .ai-modal-header h2 {
+            color: #333;
+            font-size: 18px;
+            margin: 0;
+        }
+        
+        .ai-modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+        
+        .ai-modal-close:hover {
+            color: #333;
+        }
+        
+        .ai-form-group {
+            margin-bottom: 20px;
+        }
+        
+        .ai-form-group label {
+            display: block;
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .ai-form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 13px;
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .ai-button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .ai-response {
+            background: #f5f5f5;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .ai-response-title {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .ai-response-content {
+            color: #333;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 13px;
+        }
+        
         @media (max-width: 768px) {
             .content {
                 grid-template-columns: 1fr;
@@ -457,7 +566,27 @@
                     <button class="btn-primary" onclick="downloadBatch()">⬇️ Download Batch (CSV + Photos)</button>
                     <button class="btn-secondary" onclick="downloadFile()">⬇️ Download CSV Only</button>
                     <button class="btn-secondary" onclick="deleteFile()">🗑️ Delete</button>
+                    <button class="btn-primary" onclick="openAIAssistant()">🤖 AI Assistant</button>
                 </div>
+            </div>
+        </div>
+        
+        <!-- AI Assistant Modal -->
+        <div class="ai-modal" id="aiModal">
+            <div class="ai-modal-content">
+                <div class="ai-modal-header">
+                    <h2>🤖 AI Assistant</h2>
+                    <button class="ai-modal-close" onclick="closeAIAssistant()">✕</button>
+                </div>
+                <div class="ai-form-group">
+                    <label for="aiPrompt">Prompt (modify as needed):</label>
+                    <textarea id="aiPrompt" placeholder="e.g., which field contain processing...?">which field contain processing...?</textarea>
+                </div>
+                <div class="ai-button-group">
+                    <button class="btn-secondary" onclick="closeAIAssistant()">Cancel</button>
+                    <button class="btn-primary" onclick="sendAIRequest()">📤 Send</button>
+                </div>
+                <div id="aiResponse"></div>
             </div>
         </div>
         
@@ -765,6 +894,96 @@
             const messageDiv = document.getElementById('uploadMessage');
             messageDiv.textContent = message;
             messageDiv.className = type;
+        }
+        
+        // AI Assistant Functions
+        function openAIAssistant() {
+            if (!selectedFile) {
+                alert('Please select a CSV file first');
+                return;
+            }
+            document.getElementById('aiModal').classList.add('show');
+            document.getElementById('aiResponse').innerHTML = '';
+            document.getElementById('aiPrompt').value = 'which field contain processing...?';
+        }
+        
+        function closeAIAssistant() {
+            document.getElementById('aiModal').classList.remove('show');
+            document.getElementById('aiResponse').innerHTML = '';
+        }
+        
+        async function sendAIRequest() {
+            const prompt = document.getElementById('aiPrompt').value.trim();
+            
+            if (!prompt) {
+                alert('Please enter a prompt');
+                return;
+            }
+            
+            if (!selectedFile) {
+                alert('Please select a CSV file first');
+                return;
+            }
+            
+            try {
+                // Show loading state
+                const responseDiv = document.getElementById('aiResponse');
+                responseDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Sending request to AI...</div>';
+                
+                // Get CSV content
+                const response = await fetch(`/api/files/${selectedFile.batch}/${selectedFile.filename}`);
+                const fileData = await response.json();
+                
+                if (!fileData.success) {
+                    responseDiv.innerHTML = '<div class="error">Error loading CSV file</div>';
+                    return;
+                }
+                
+                const csvData = fileData.content;
+                
+                // Prepare the request to the LLM API
+                const llmResponse = await fetch('http://192.168.1.145:8000/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: 'user',
+                                content: `${prompt}\n\nHere is the CSV data:\n\n${csvData}`
+                            }
+                        ]
+                    })
+                });
+                
+                if (!llmResponse.ok) {
+                    responseDiv.innerHTML = `<div class="error">Error: ${llmResponse.status} ${llmResponse.statusText}</div>`;
+                    return;
+                }
+                
+                const llmData = await llmResponse.json();
+                
+                // Extract response content
+                let responseText = '';
+                if (llmData.choices && llmData.choices.length > 0) {
+                    responseText = llmData.choices[0].message?.content || 'No response received';
+                } else {
+                    responseText = JSON.stringify(llmData, null, 2);
+                }
+                
+                // Display response
+                responseDiv.innerHTML = `
+                    <div class="ai-response">
+                        <div class="ai-response-title">💡 AI Response:</div>
+                        <div class="ai-response-content">${responseText}</div>
+                    </div>
+                `;
+            } catch (err) {
+                console.error('AI Error:', err);
+                const responseDiv = document.getElementById('aiResponse');
+                responseDiv.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            }
         }
     </script>
 </body>
