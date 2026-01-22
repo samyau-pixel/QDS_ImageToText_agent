@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const archiver = require('archiver');
+const { execSync } = require('child_process');
 
 const app = express();
 const PORT = 3000;
@@ -32,6 +33,32 @@ if (!fs.existsSync(templatesDir)) {
 const tempDir = path.join(__dirname, 'temp_uploads');
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
+}
+
+// Helper function to copy a directory recursively
+function copyDirectory(src, dest) {
+    if (!fs.existsSync(dest)) {
+        fs.mkdirSync(dest, { recursive: true });
+    }
+    
+    const files = fs.readdirSync(src);
+    files.forEach(file => {
+        const srcPath = path.join(src, file);
+        const destPath = path.join(dest, file);
+        
+        if (fs.statSync(srcPath).isDirectory()) {
+            copyDirectory(srcPath, destPath);
+        } else {
+            fs.copyFileSync(srcPath, destPath);
+        }
+    });
+}
+
+// Helper function to delete a directory recursively
+function deleteDirectory(dir) {
+    if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
 }
 
 const storage = multer.diskStorage({
@@ -195,6 +222,8 @@ app.get('/download/:batch/:filename', (req, res) => {
 
 // Download entire batch folder as ZIP
 app.get('/download-batch/:batch', (req, res) => {
+    let tempWorkDir = null;
+    
     try {
         const batchPath = path.join(uploadsDir, req.params.batch);
         
@@ -203,26 +232,119 @@ app.get('/download-batch/:batch', (req, res) => {
             return res.status(403).json({ success: false, error: 'Access denied or batch not found' });
         }
         
-        // Create a ZIP file
-        res.setHeader('Content-Type', 'application/zip');
-        res.setHeader('Content-Disposition', `attachment; filename="${req.params.batch}.zip"`);
+        console.log(`\n=== Download Batch Started ===`);
+        console.log(`Batch: ${req.params.batch}`);
+        console.log(`Source path: ${batchPath}`);
         
-        const archive = archiver('zip', { zlib: { level: 9 } });
+        // Create a temporary work directory for processing
+        const tempWorkDirName = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        tempWorkDir = path.join(tempDir, tempWorkDirName);
         
-        archive.on('error', (err) => {
-            console.error('Archive error:', err);
-            res.status(500).json({ success: false, error: 'Error creating archive' });
-        });
+        console.log(`Creating temporary work directory: ${tempWorkDir}`);
+        fs.mkdirSync(tempWorkDir, { recursive: true });
         
-        // Pipe archive data to response
-        archive.pipe(res);
+        // Copy batch folder to temporary location
+        console.log(`Copying batch to temporary location...`);
+        copyDirectory(batchPath, tempWorkDir);
         
-        // Add all files from the batch folder
-        archive.directory(batchPath, req.params.batch);
+        const outputExcelPath = path.join(tempWorkDir, 'output.xlsx');
+        console.log(`Output Excel path: ${outputExcelPath}`);
         
-        archive.finalize();
+        // Execute Python script
+        const pythonScript = path.join(__dirname, 'combine_excel_image.py');
+        if (!fs.existsSync(pythonScript)) {
+            console.error('Python script not found:', pythonScript);
+            deleteDirectory(tempWorkDir);
+            return res.status(500).json({ success: false, error: 'Python script not found' });
+        }
+        
+        try {
+            // Detect Python executable
+            const pythonExecutable = process.platform === 'win32' 
+                ? path.join(__dirname, '../ImageTText/Scripts/python.exe')
+                : 'python3';
+            
+            const command = `"${pythonExecutable}" "${pythonScript}" "${tempWorkDir}" "${outputExcelPath}"`;
+            console.log(`Executing: ${command}`);
+            
+            const result = execSync(command, {
+                encoding: 'utf-8',
+                stdio: ['pipe', 'pipe', 'pipe'],
+                maxBuffer: 50 * 1024 * 1024
+            });
+            
+            console.log(`Python script completed successfully`);
+            
+            // Check if output file was created
+            if (!fs.existsSync(outputExcelPath)) {
+                console.error('Excel file not created by Python script');
+                deleteDirectory(tempWorkDir);
+                return res.status(500).json({ success: false, error: 'Failed to generate Excel file' });
+            }
+            
+            const fileSize = fs.statSync(outputExcelPath).size;
+            console.log(`Excel file created: ${fileSize} bytes`);
+            
+            // Send the Excel file to user
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="${req.params.batch}_formatted.xlsx"`);
+            
+            const fileStream = fs.createReadStream(outputExcelPath);
+            
+            fileStream.on('error', (err) => {
+                console.error('Stream error:', err);
+                deleteDirectory(tempWorkDir);
+                if (!res.headersSent) {
+                    res.status(500).json({ success: false, error: 'Error sending file' });
+                }
+            });
+            
+            fileStream.pipe(res);
+            
+            // Cleanup after sending (with delay to ensure file is sent)
+            res.on('finish', () => {
+                console.log(`File sent to client, cleaning up temporary directory...`);
+                deleteDirectory(tempWorkDir);
+                console.log(`Cleanup complete`);
+            });
+            
+        } catch (error) {
+            console.error('Python execution error:', error.message);
+            
+            // Cleanup temp directory
+            deleteDirectory(tempWorkDir);
+            tempWorkDir = null;
+            
+            // Fallback: return original batch as ZIP
+            console.log('Falling back to ZIP download...');
+            res.setHeader('Content-Type', 'application/zip');
+            res.setHeader('Content-Disposition', `attachment; filename="${req.params.batch}.zip"`);
+            
+            const archive = archiver('zip', { zlib: { level: 9 } });
+            
+            archive.on('error', (err) => {
+                console.error('Archive error:', err);
+                if (!res.headersSent) {
+                    res.status(500).json({ success: false, error: 'Error creating archive' });
+                }
+            });
+            
+            archive.pipe(res);
+            archive.directory(batchPath, req.params.batch);
+            archive.finalize();
+        }
+        
     } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
+        console.error('General error:', err);
+        
+        // Cleanup if temp directory still exists
+        if (tempWorkDir) {
+            deleteDirectory(tempWorkDir);
+        }
+        
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, error: err.message });
+        }
     }
 });
 
