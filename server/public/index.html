@@ -541,6 +541,103 @@
             background: #764ba2;
         }
         
+        .corner-icon {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            pointer-events: none;
+            z-index: 100;
+            width: 300px;
+            height: 300px;
+            object-fit: contain;
+            background: transparent;
+        }
+        
+        .report-error-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 100;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .report-error-btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+        }
+        
+        .error-input-box {
+            position: fixed;
+            bottom: 340px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 99;
+            min-width: 380px;
+            display: none;
+        }
+        
+        .error-input-box.show {
+            display: block;
+        }
+        
+        .error-input-box textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 180px;
+            margin-bottom: 10px;
+        }
+        
+        .error-input-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        
+        .error-input-actions button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .error-submit-btn {
+            background: #667eea;
+            color: white;
+        }
+        
+        .error-submit-btn:hover {
+            background: #764ba2;
+        }
+        
+        .error-cancel-btn {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .error-cancel-btn:hover {
+            background: #e0e0e0;
+        }
+        
         @media (max-width: 768px) {
             .content {
                 grid-template-columns: 1fr;
@@ -1058,6 +1155,93 @@
                 responseDiv.innerHTML = `<div class="error">Error: ${err.message}</div>`;
             }
         }
+    </script>
+    
+    <!-- Report Error Button -->
+    <button id="reportErrorBtn" class="report-error-btn">🐛 Report Error</button>
+    
+    <!-- Error Input Box -->
+    <div id="errorInputBox" class="error-input-box">
+        <p style="font-weight: 600; margin-bottom: 10px; color: #333;">Report an Issue</p>
+        <textarea id="errorMessage" placeholder="Describe the issue and provide your contact information (if you would like)"></textarea>
+        <div class="error-input-actions">
+            <button class="error-cancel-btn" onclick="closeErrorReport()">Cancel</button>
+            <button class="error-submit-btn" onclick="submitErrorReport()">Submit</button>
+        </div>
+    </div>
+    
+    <!-- Corner Icon -->
+    <img id="cornerIcon" alt="Developing" class="corner-icon" style="display: none;">
+    
+    <script>
+        // Load right-bottom icon dynamically
+        async function loadCornerIcon() {
+            try {
+                const response = await fetch('/api/icon/right-bottom');
+                if (response.ok) {
+                    const data = await response.json();
+                    const img = document.getElementById('cornerIcon');
+                    img.src = data.imagePath;
+                }
+            } catch (err) {
+                console.error('Error loading corner icon:', err);
+            }
+        }
+        
+        // Toggle error report panel
+        document.getElementById('reportErrorBtn').addEventListener('click', () => {
+            const inputBox = document.getElementById('errorInputBox');
+            const icon = document.getElementById('cornerIcon');
+            
+            inputBox.classList.add('show');
+            icon.style.display = 'block';
+            document.getElementById('reportErrorBtn').style.display = 'none';
+            
+            document.getElementById('errorMessage').focus();
+        });
+        
+        function closeErrorReport() {
+            const inputBox = document.getElementById('errorInputBox');
+            const icon = document.getElementById('cornerIcon');
+            
+            inputBox.classList.remove('show');
+            icon.style.display = 'none';
+            document.getElementById('reportErrorBtn').style.display = 'block';
+            document.getElementById('errorMessage').value = '';
+        }
+        
+        function submitErrorReport() {
+            const message = document.getElementById('errorMessage').value;
+            if (!message.trim()) {
+                alert('Please describe the issue');
+                return;
+            }
+            
+            // Send to backend API
+            fetch('/api/report-error', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ description: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✓ Thank you for reporting! We will look into it.');
+                    closeErrorReport();
+                } else {
+                    alert('Error submitting report: ' + data.error);
+                }
+            })
+            .catch(err => {
+                console.error('Submit error:', err);
+                alert('Error submitting report: ' + err.message);
+            });
+        }
+        
+        // Load icon when page loads
+        window.addEventListener('load', loadCornerIcon);
     </script>
 </body>
 </html>

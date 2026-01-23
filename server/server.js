@@ -6,6 +6,7 @@ const fs = require('fs');
 const archiver = require('archiver');
 const { execSync } = require('child_process');
 const XLSX = require('xlsx');
+const https = require('https');
 
 const app = express();
 const PORT = 3000;
@@ -14,6 +15,105 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// Serve Icon directory
+app.use('/Icon', express.static('Icon'));
+
+// Get right_bottom icon dynamically (any PNG file in right_bottom folder)
+app.get('/api/icon/right-bottom', (req, res) => {
+    try {
+        const iconDir = path.join(__dirname, 'Icon', 'right_bottom');
+        if (!fs.existsSync(iconDir)) {
+            return res.status(404).json({ error: 'Icon folder not found' });
+        }
+        
+        const files = fs.readdirSync(iconDir);
+        const pngFiles = files.filter(f => f.toLowerCase().endsWith('.png'));
+        
+        if (pngFiles.length === 0) {
+            return res.status(404).json({ error: 'No PNG files found' });
+        }
+        
+        // Return the first PNG file found
+        res.json({ imagePath: `/Icon/right_bottom/${pngFiles[0]}` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Report error to Freshdesk
+app.post('/api/report-error', (req, res) => {
+    try {
+        const { description } = req.body;
+        
+        if (!description || !description.trim()) {
+            return res.status(400).json({ success: false, error: 'Description is required' });
+        }
+        
+        // Generate subject with current date and time
+        const now = new Date();
+        const dateStr = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`;
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const subject = `ImageTText Issue -- ${dateStr}--${timeStr}`;
+        
+        // Prepare the Freshdesk ticket data
+        const ticketData = {
+            description: description.trim(),
+            subject: subject,
+            email: "sam.yau@quantum.com.hk",
+            priority: 1,
+            status: 2,
+            cc_emails: [],
+            type: "Incident",
+            tags: ["ImageTTest"],
+            responder_id: 50596278
+        };
+        
+        // Make HTTPS request to Freshdesk API
+        const options = {
+            hostname: 'qds.freshdesk.com',
+            path: '/api/v2/tickets',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Basic ' + Buffer.from('rW3cT5BlAL8RQ1V1XZH0:X').toString('base64')
+            }
+        };
+        
+        const request = https.request(options, (response) => {
+            let data = '';
+            
+            response.on('data', (chunk) => {
+                data += chunk;
+            });
+            
+            response.on('end', () => {
+                if (response.statusCode === 201 || response.statusCode === 200) {
+                    console.log('Error report sent to Freshdesk successfully');
+                    res.json({ success: true, message: 'Error report submitted successfully' });
+                } else {
+                    console.error('Freshdesk API error:', response.statusCode, data);
+                    res.status(response.statusCode).json({ 
+                        success: false, 
+                        error: `Freshdesk API error: ${response.statusCode}` 
+                    });
+                }
+            });
+        });
+        
+        request.on('error', (err) => {
+            console.error('Request error:', err);
+            res.status(500).json({ success: false, error: err.message });
+        });
+        
+        request.write(JSON.stringify(ticketData));
+        request.end();
+        
+    } catch (err) {
+        console.error('Error reporting error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
 // Serve uploads directory so photos can be accessed via /uploads/filename.jpg
 app.use('/uploads', express.static('uploads'));
