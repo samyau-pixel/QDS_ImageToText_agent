@@ -565,6 +565,7 @@
                 <div class="actions" id="actions" style="display: none;">
                     <button class="btn-primary" onclick="downloadBatch()">⬇️ Download Batch (CSV + Photos)</button>
                     <button class="btn-secondary" onclick="downloadFile()">⬇️ Download CSV Only</button>
+                    <button class="btn-secondary" onclick="renameFile()">✏️ Rename</button>
                     <button class="btn-secondary" onclick="deleteFile()">🗑️ Delete</button>
                     <button class="btn-primary" onclick="openAIAssistant()">🤖 AI Assistant</button>
                 </div>
@@ -630,12 +631,13 @@
             
             fileList.innerHTML = files.map((file, index) => {
                 const date = new Date(file.modified).toLocaleString();
+                const reportName = file.reportName || 'Unnamed Report';
                 return `
                     <li class="file-item ${selectedFile?.filename === file.filename && selectedFile?.batch === file.batch ? 'active' : ''}" 
                         onclick="selectFile('${file.filename}', '${file.batch}')">
-                        <div class="file-name">${file.filename}</div>
+                        <div class="file-name">📋 ${reportName}</div>
                         <div class="file-meta">
-                            Batch: ${file.batch} • ${(file.size / 1024).toFixed(2)} KB • ${date}
+                            ${(file.size / 1024).toFixed(2)} KB • ${date}
                         </div>
                     </li>
                 `;
@@ -760,6 +762,37 @@
         function downloadBatch() {
             if (selectedFile) {
                 window.location.href = `/download-batch/${selectedFile.batch}`;
+            }
+        }
+        
+        async function renameFile() {
+            if (!selectedFile) return;
+            
+            const currentName = files.find(f => f.batch === selectedFile.batch)?.reportName || 'Unnamed Report';
+            const newName = prompt(`Rename "${currentName}" to:`, currentName);
+            
+            if (!newName || newName.trim() === '') return;
+            if (newName.trim() === currentName) return;  // No change
+            
+            try {
+                const response = await fetch(`/api/batch/${selectedFile.batch}/rename`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newName: newName.trim() })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess(`✓ Renamed to "${data.reportName}"`);
+                    await loadFiles();  // Reload the file list
+                    // Re-select the file to refresh display
+                    selectFile(selectedFile.filename, selectedFile.batch);
+                } else {
+                    showError('Error: ' + data.error);
+                }
+            } catch (err) {
+                showError('Error: ' + err.message);
             }
         }
         

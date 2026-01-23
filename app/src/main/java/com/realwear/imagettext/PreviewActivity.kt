@@ -3,10 +3,12 @@ package com.realwear.imagettext
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TableLayout
 import android.widget.TableRow
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -72,10 +74,36 @@ class PreviewActivity : AppCompatActivity() {
             return
         }
         
+        // Show dialog to enter report name
+        showReportNameDialog()
+    }
+    
+    private fun showReportNameDialog() {
+        val input = EditText(this)
+        input.hint = "Enter report name (e.g., Batch_001)"
+        input.setText("")
+        
+        AlertDialog.Builder(this)
+            .setTitle("📝 Report Name")
+            .setMessage("Enter a name for this report:")
+            .setView(input)
+            .setPositiveButton("Send") { _, _ ->
+                val reportName = input.text.toString().trim()
+                if (reportName.isEmpty()) {
+                    Toast.makeText(this, "Please enter a report name", Toast.LENGTH_SHORT).show()
+                } else {
+                    sendDataWithReportName(reportName)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun sendDataWithReportName(reportName: String) {
         lifecycleScope.launch(Dispatchers.Default) {
             try {
                 val csvFile = csvManager.getCSVFile()
-                val success = uploadCSVToServer(csvFile)
+                val success = uploadCSVToServer(csvFile, reportName)
                 
                 runOnUiThread {
                     if (success) {
@@ -95,12 +123,13 @@ class PreviewActivity : AppCompatActivity() {
         }
     }
     
-    private fun uploadCSVToServer(csvFile: File): Boolean {
+    private fun uploadCSVToServer(csvFile: File, reportName: String): Boolean {
         return try {
             val multipartBuilder = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("csv_file", csvFile.name, csvFile.asRequestBody("text/csv".toMediaTypeOrNull()))
                 .addFormDataPart("device_name", "RealWear")
+                .addFormDataPart("report_name", reportName)
                 .addFormDataPart("timestamp", getCurrentTimestamp())
             
             // Add all photos from photo directory
@@ -128,6 +157,7 @@ class PreviewActivity : AppCompatActivity() {
             val success = response.isSuccessful
             
             Log.d("PreviewActivity", "Upload response: ${response.code}")
+            Log.d("PreviewActivity", "Report name sent: $reportName")
             response.body?.string()?.let { Log.d("PreviewActivity", "Response body: $it") }
             
             success

@@ -84,15 +84,40 @@ app.post('/upload', upload.any(), (req, res) => {
     try {
         console.log('=== Upload Request Received ===');
         console.log('Files count:', req.files ? req.files.length : 0);
+        console.log('Report name:', req.body.report_name || 'Not provided');
         
-        // Create a timestamped folder for this batch
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const batchFolder = path.join(uploadsDir, `batch_${timestamp}`);
+        // Get report name from request
+        const originalReportName = req.body.report_name?.trim();
+        let batchName = originalReportName;
+        
+        if (!batchName) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            batchName = `batch_${timestamp}`;
+        } else {
+            // Sanitize the report name (remove special characters, replace spaces with underscores)
+            batchName = batchName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 100);
+            // Ensure uniqueness by adding timestamp if needed
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            batchName = `${batchName}_${timestamp}`;
+        }
+        
+        const batchFolder = path.join(uploadsDir, batchName);
         
         if (!fs.existsSync(batchFolder)) {
             fs.mkdirSync(batchFolder, { recursive: true });
             console.log(`Created batch folder: ${batchFolder}`);
         }
+        
+        // Save metadata with report name
+        const metadata = {
+            reportName: originalReportName || 'Unnamed Report',
+            batchName: batchName,
+            deviceName: req.body.device_name || 'Unknown Device',
+            uploadTime: new Date().toISOString(),
+            timestamp: req.body.timestamp
+        };
+        fs.writeFileSync(path.join(batchFolder, 'metadata.json'), JSON.stringify(metadata, null, 2));
+        console.log(`Saved metadata with report name: ${metadata.reportName}`);
         
         let csvFile = null;
         let photoFiles = [];
@@ -122,15 +147,16 @@ app.post('/upload', upload.any(), (req, res) => {
         
         console.log('Device name:', req.body.device_name);
         console.log('Timestamp:', req.body.timestamp);
-        console.log(`Summary: Batch=${timestamp}, CSV=${csvFile ? 'yes' : 'no'}, Photos=${photoFiles.length}`);
+        console.log(`Summary: Batch=${batchName}, CSV=${csvFile ? 'yes' : 'no'}, Photos=${photoFiles.length}`);
         
         res.json({
             success: true,
             message: 'Files uploaded successfully',
-            batch_folder: `batch_${timestamp}`,
+            batch_folder: batchName,
             csv_file: csvFile ? csvFile.filename : null,
             photo_count: photoFiles.length,
             photos: photoFiles.map(f => f.filename),
+            report_name: originalReportName,
             device_name: req.body.device_name,
             timestamp: req.body.timestamp
         });
@@ -156,20 +182,37 @@ app.get('/api/files', (req, res) => {
             const itemPath = path.join(uploadsDir, item);
             const stats = fs.statSync(itemPath);
             
-            // If it's a batch folder
-            if (stats.isDirectory() && item.startsWith('batch_')) {
-                // Look for CSV files inside
-                const csvFiles = fs.readdirSync(itemPath).filter(f => f.endsWith('.csv'));
+            // If it's a directory (batch folder)
+            if (stats.isDirectory()) {
+                // Try to read metadata for report name
+                let reportName = 'Unnamed Report';
+                try {
+                    const metadataPath = path.join(itemPath, 'metadata.json');
+                    if (fs.existsSync(metadataPath)) {
+                        const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+                        reportName = metadata.reportName || 'Unnamed Report';
+                    }
+                } catch (err) {
+                    console.warn(`Could not read metadata for ${item}:`, err.message);
+                }
                 
-                for (const csvFile of csvFiles) {
-                    const csvPath = path.join(itemPath, csvFile);
-                    const csvStats = fs.statSync(csvPath);
-                    files.push({
-                        filename: csvFile,
-                        batch: item,
-                        size: csvStats.size,
-                        modified: csvStats.mtime
-                    });
+                // Look for CSV files inside
+                try {
+                    const csvFiles = fs.readdirSync(itemPath).filter(f => f.endsWith('.csv'));
+                    
+                    for (const csvFile of csvFiles) {
+                        const csvPath = path.join(itemPath, csvFile);
+                        const csvStats = fs.statSync(csvPath);
+                        files.push({
+                            filename: csvFile,
+                            batch: item,
+                            reportName: reportName,
+                            size: csvStats.size,
+                            modified: csvStats.mtime
+                        });
+                    }
+                } catch (err) {
+                    console.warn(`Error reading files in ${item}:`, err.message);
                 }
             }
         }
@@ -350,6 +393,53 @@ app.get('/download-batch/:batch', (req, res) => {
 });
 
 // Delete entire batch folder
+// Rename a batch (update report name)
+app.put('/api/batch/:batch/rename', (req, res) => {
+    try {
+        const batchPath = path.join(uploadsDir, req.params.batch);
+        const newName = req.body.newName?.trim();
+        
+        // Security checks
+        if (!batchPath.startsWith(uploadsDir) || !fs.existsSync(batchPath)) {
+            return res.status(403).json({ success: false, error: 'Access denied or batch not found' });
+        }
+        
+        if (!newName) {
+            return res.status(400).json({ success: false, error: 'New name is required' });
+        }
+        
+        // Read current metadata
+        const metadataPath = path.join(batchPath, 'metadata.json');
+        let metadata = {};
+        
+        if (fs.existsSync(metadataPath)) {
+            try {
+                metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+            } catch (err) {
+                console.warn('Could not parse existing metadata:', err.message);
+            }
+        }
+        
+        // Update the report name
+        metadata.reportName = newName;
+        metadata.lastModified = new Date().toISOString();
+        
+        // Write updated metadata
+        fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+        console.log(`Renamed batch ${req.params.batch} to "${newName}"`);
+        
+        res.json({
+            success: true,
+            message: 'Batch renamed successfully',
+            reportName: newName
+        });
+    } catch (err) {
+        console.error('Rename error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Delete a batch
 app.delete('/api/batch/:batch', (req, res) => {
     try {
         const batchPath = path.join(uploadsDir, req.params.batch);
