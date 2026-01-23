@@ -50,11 +50,13 @@ class MainActivity : AppCompatActivity() {
     private var currentPhotoUri: android.net.Uri? = null
     private var currentResultView: EditText? = null  // Track which result box to fill
     private var serverURL: String = ""
+    private var currentTemplate: Template? = null  // Track the current template
     
     // Track photo paths for current session
     private var rackPhotoPath: String? = null
     private var label1PhotoPath: String? = null
     private var label2PhotoPath: String? = null
+    private var dynamicFieldPhotoPaths = mutableMapOf<Int, String>()  // Track photos for dynamic fields by EditText ID
     
     companion object {
         private const val CAMERA_REQUEST_CODE = 100
@@ -114,6 +116,19 @@ class MainActivity : AppCompatActivity() {
         // Set Rack button listener
         rackButton.setOnClickListener {
             currentResultView = rackResult
+            // If re-capturing, delete old photo first
+            if (!rackPhotoPath.isNullOrEmpty()) {
+                try {
+                    val oldFile = File(rackPhotoPath!!)
+                    if (oldFile.exists()) {
+                        oldFile.delete()
+                        Log.d("ImageTText", "Deleted old rack photo: $rackPhotoPath")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ImageTText", "Error deleting old photo: ${e.message}")
+                }
+                rackPhotoPath = null
+            }
             rackResult.setText("Processing...")
             launchCameraPhotoCapture()
         }
@@ -121,6 +136,19 @@ class MainActivity : AppCompatActivity() {
         // Set Label_1 button listener
         label1Button.setOnClickListener {
             currentResultView = label1Result
+            // If re-capturing, delete old photo first
+            if (!label1PhotoPath.isNullOrEmpty()) {
+                try {
+                    val oldFile = File(label1PhotoPath!!)
+                    if (oldFile.exists()) {
+                        oldFile.delete()
+                        Log.d("ImageTText", "Deleted old label1 photo: $label1PhotoPath")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ImageTText", "Error deleting old photo: ${e.message}")
+                }
+                label1PhotoPath = null
+            }
             label1Result.setText("Processing...")
             launchCameraPhotoCapture()
         }
@@ -128,6 +156,19 @@ class MainActivity : AppCompatActivity() {
         // Set Label_2 button listener
         label2Button.setOnClickListener {
             currentResultView = label2Result
+            // If re-capturing, delete old photo first
+            if (!label2PhotoPath.isNullOrEmpty()) {
+                try {
+                    val oldFile = File(label2PhotoPath!!)
+                    if (oldFile.exists()) {
+                        oldFile.delete()
+                        Log.d("ImageTText", "Deleted old label2 photo: $label2PhotoPath")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ImageTText", "Error deleting old photo: ${e.message}")
+                }
+                label2PhotoPath = null
+            }
             label2Result.setText("Processing...")
             launchCameraPhotoCapture()
         }
@@ -229,6 +270,13 @@ class MainActivity : AppCompatActivity() {
                                     rackResult -> rackPhotoPath = photoFile.absolutePath
                                     label1Result -> label1PhotoPath = photoFile.absolutePath
                                     label2Result -> label2PhotoPath = photoFile.absolutePath
+                                    else -> {
+                                        // For dynamic fields, track by EditText ID
+                                        currentResultView?.id?.let { editTextId ->
+                                            dynamicFieldPhotoPaths[editTextId] = photoFile.absolutePath
+                                            Log.d("ImageTText", "Tracked dynamic field photo: ID=$editTextId, Path=${photoFile.absolutePath}")
+                                        }
+                                    }
                                 }
                                 
                                 // Send to OCR for text extraction
@@ -385,23 +433,31 @@ class MainActivity : AppCompatActivity() {
             val fieldValues = mutableMapOf<String, String>()
             val fieldPhotoPaths = mutableMapOf<String, String>()
             
-            // Get default fields
-            fieldValues["Rack Number"] = rackResult.text.toString().trim()
-            fieldValues["Label1"] = label1Result.text.toString().trim()
-            fieldValues["Label2"] = label2Result.text.toString().trim()
+            // Get template columns or use defaults if no template
+            val template = currentTemplate
+            val templateColumns = template?.columns ?: listOf("Rack Number", "Label1", "Label2")
             
-            // Store photo paths for the three default fields
-            if (!rackPhotoPath.isNullOrEmpty()) {
-                fieldPhotoPaths["Rack Number"] = rackPhotoPath ?: ""
+            // Only collect values for fields that exist in the template
+            if (templateColumns.size >= 1) {
+                fieldValues[templateColumns[0]] = rackResult.text.toString().trim()
+                if (!rackPhotoPath.isNullOrEmpty()) {
+                    fieldPhotoPaths[templateColumns[0]] = rackPhotoPath ?: ""
+                }
             }
-            if (!label1PhotoPath.isNullOrEmpty()) {
-                fieldPhotoPaths["Label1"] = label1PhotoPath ?: ""
+            if (templateColumns.size >= 2) {
+                fieldValues[templateColumns[1]] = label1Result.text.toString().trim()
+                if (!label1PhotoPath.isNullOrEmpty()) {
+                    fieldPhotoPaths[templateColumns[1]] = label1PhotoPath ?: ""
+                }
             }
-            if (!label2PhotoPath.isNullOrEmpty()) {
-                fieldPhotoPaths["Label2"] = label2PhotoPath ?: ""
+            if (templateColumns.size >= 3) {
+                fieldValues[templateColumns[2]] = label2Result.text.toString().trim()
+                if (!label2PhotoPath.isNullOrEmpty()) {
+                    fieldPhotoPaths[templateColumns[2]] = label2PhotoPath ?: ""
+                }
             }
             
-            // Get dynamic field values
+            // Get dynamic field values (for fields beyond the first 3)
             val fieldsContainer = findViewById<android.widget.LinearLayout>(R.id.fieldsContainer)
             for (i in 3 until fieldsContainer.childCount) {
                 val view = fieldsContainer.getChildAt(i)
@@ -409,8 +465,16 @@ class MainActivity : AppCompatActivity() {
                     for (j in 0 until view.childCount) {
                         val child = view.getChildAt(j)
                         if (child is android.widget.EditText) {
-                            val fieldName = "Field_$i"
-                            fieldValues[fieldName] = child.text.toString().trim()
+                            // Get the field name from template
+                            if (i < templateColumns.size) {
+                                val fieldName = templateColumns[i]
+                                fieldValues[fieldName] = child.text.toString().trim()
+                                
+                                // Check if this field has a photo path tracked
+                                if (dynamicFieldPhotoPaths.containsKey(child.id)) {
+                                    fieldPhotoPaths[fieldName] = dynamicFieldPhotoPaths[child.id] ?: ""
+                                }
+                            }
                             break
                         }
                     }
@@ -445,6 +509,23 @@ class MainActivity : AppCompatActivity() {
         rackPhotoPath = null
         label1PhotoPath = null
         label2PhotoPath = null
+        dynamicFieldPhotoPaths.clear()
+        
+        // Also clear dynamic field EditTexts
+        val fieldsContainer = findViewById<android.widget.LinearLayout>(R.id.fieldsContainer)
+        for (i in 3 until fieldsContainer.childCount) {
+            val view = fieldsContainer.getChildAt(i)
+            if (view is android.widget.LinearLayout && view.tag == "dynamic_field") {
+                for (j in 0 until view.childCount) {
+                    val child = view.getChildAt(j)
+                    if (child is android.widget.EditText) {
+                        child.setText("")
+                        break
+                    }
+                }
+            }
+        }
+        
         Log.d("ImageTText", "Current entry cleared")
     }
 
@@ -507,6 +588,7 @@ class MainActivity : AppCompatActivity() {
         val template = TemplateManager.loadTemplate(this)
         
         if (template != null) {
+            currentTemplate = template  // Store the current template
             Log.d("ImageTText", "Loading template: ${template.name} with columns: ${template.columns}")
             
             val fieldsContainer = findViewById<android.widget.LinearLayout>(R.id.fieldsContainer)
@@ -523,10 +605,28 @@ class MainActivity : AppCompatActivity() {
                 fieldsContainer.removeView(view)
             }
             
+            // Clear old dynamic field data
+            dynamicFieldPhotoPaths.clear()
+            
             // Update CSV headers to match template columns
             csvManager.reinitializeCSVWithTemplate(template.columns)
             
-            // Update the first 3 buttons with template column names
+            // Show/hide the first 3 buttons based on template column count
+            rackButton.visibility = if (template.columns.size >= 1) View.VISIBLE else View.GONE
+            label1Button.visibility = if (template.columns.size >= 2) View.VISIBLE else View.GONE
+            label2Button.visibility = if (template.columns.size >= 3) View.VISIBLE else View.GONE
+            
+            // Also hide the corresponding result fields
+            rackResult.visibility = if (template.columns.size >= 1) View.VISIBLE else View.GONE
+            label1Result.visibility = if (template.columns.size >= 2) View.VISIBLE else View.GONE
+            label2Result.visibility = if (template.columns.size >= 3) View.VISIBLE else View.GONE
+            
+            // Clear text in hidden result fields
+            if (template.columns.size < 1) rackResult.setText("")
+            if (template.columns.size < 2) label1Result.setText("")
+            if (template.columns.size < 3) label2Result.setText("")
+            
+            // Update the button labels with template column names
             if (template.columns.size >= 1) {
                 rackButton.text = template.columns[0]
                 Log.d("ImageTText", "Updated rackButton to: ${template.columns[0]}")
@@ -549,6 +649,7 @@ class MainActivity : AppCompatActivity() {
             
             Toast.makeText(this, "Template loaded: ${template.name} (${template.columns.size} fields)", Toast.LENGTH_SHORT).show()
         } else {
+            currentTemplate = null
             Log.d("ImageTText", "No template loaded, using default fields")
         }
     }
@@ -598,6 +699,22 @@ class MainActivity : AppCompatActivity() {
         // Add click listener to button to open camera
         button.setOnClickListener {
             currentResultView = editText
+            
+            // If re-capturing, delete old photo first
+            val editTextId = editText.id
+            if (dynamicFieldPhotoPaths.containsKey(editTextId)) {
+                try {
+                    val oldFile = File(dynamicFieldPhotoPaths[editTextId]!!)
+                    if (oldFile.exists()) {
+                        oldFile.delete()
+                        Log.d("ImageTText", "Deleted old dynamic field photo: ${dynamicFieldPhotoPaths[editTextId]}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ImageTText", "Error deleting old photo: ${e.message}")
+                }
+                dynamicFieldPhotoPaths.remove(editTextId)
+            }
+            
             editText.setText("Processing...")
             launchCameraPhotoCapture()
         }

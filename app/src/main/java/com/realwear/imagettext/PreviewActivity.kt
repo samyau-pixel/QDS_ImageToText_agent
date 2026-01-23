@@ -165,7 +165,7 @@ class PreviewActivity : AppCompatActivity() {
                 val headerParams = TableLayout.LayoutParams()
                 headerParams.setMargins(0, 4, 0, 4)
                 headerRow.layoutParams = headerParams
-                val headers = lines[0].split(",")
+                val headers = parseCSVLine(lines[0])
                 for (header in headers) {
                     val headerCell = TextView(this)
                     headerCell.text = header.trim().replace("\"", "")
@@ -203,7 +203,10 @@ class PreviewActivity : AppCompatActivity() {
                 // Parse CSV line carefully to handle quoted values
                 val cells = parseCSVLine(line)
                 
-                for (cleanCell in cells) {
+                for (cellRaw in cells) {
+                    // Clean the cell value (remove quotes and trim)
+                    val cleanCell = cellRaw.trim().replace("\"", "")
+                    
                     if (cleanCell.endsWith(".jpg", ignoreCase = true) || 
                         cleanCell.endsWith(".jpeg", ignoreCase = true) || 
                         cleanCell.endsWith(".png", ignoreCase = true)) {
@@ -213,17 +216,20 @@ class PreviewActivity : AppCompatActivity() {
                             val photoView = android.widget.ImageView(this)
                             val bitmap = android.graphics.BitmapFactory.decodeFile(photoFile.absolutePath)
                             if (bitmap != null) {
+                                Log.d("PreviewActivity", "Displaying photo: ${photoFile.absolutePath}")
                                 photoView.setImageBitmap(bitmap)
-                                photoView.layoutParams = TableRow.LayoutParams(150, 150)
+                                photoView.layoutParams = TableRow.LayoutParams(200, 200)
                                 photoView.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-                                photoView.setPadding(4, 4, 4, 4)
+                                photoView.setPadding(8, 8, 8, 8)
                                 val photoParams = TableRow.LayoutParams()
                                 photoParams.setMargins(4, 4, 4, 4)
                                 photoView.layoutParams = photoParams
                                 photoView.setBackgroundColor(0xFFEEEEEE.toInt())
+                                photoView.contentDescription = cleanCell
                                 dataRow.addView(photoView)
                             } else {
                                 // Fallback to text if bitmap is null
+                                Log.w("PreviewActivity", "Failed to decode bitmap for: $cleanCell")
                                 val textView = TextView(this)
                                 textView.text = cleanCell
                                 textView.setPadding(12, 12, 12, 12)
@@ -237,6 +243,7 @@ class PreviewActivity : AppCompatActivity() {
                             }
                         } else {
                             // File not found, show filename as text
+                            Log.w("PreviewActivity", "Photo file not found: $cleanCell")
                             val textView = TextView(this)
                             textView.text = cleanCell
                             textView.setPadding(12, 12, 12, 12)
