@@ -177,15 +177,8 @@ class TemplateImportActivity : AppCompatActivity() {
     }
 
     private fun saveTemplate(templateName: String, headers: List<String>) {
-        val sharedPref = getSharedPreferences("TemplateManager", android.content.Context.MODE_PRIVATE)
-        with(sharedPref.edit()) {
-            putString("templateName", templateName)
-            putInt("templateColumns", headers.size)
-            for (i in headers.indices) {
-                putString("templateColumn_$i", headers[i])
-            }
-            apply()
-        }
+        // Use TemplateManager to save the template
+        TemplateManager.saveTemplate(this, templateName, headers)
         Log.d("TemplateImport", "Template saved: $templateName with ${headers.size} columns")
     }
 }

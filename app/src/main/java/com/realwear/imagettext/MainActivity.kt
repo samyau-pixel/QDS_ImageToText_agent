@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     private var currentResultView: EditText? = null  // Track which result box to fill
     private var serverURL: String = ""
     private var currentTemplate: Template? = null  // Track the current template
+    private var currentFieldConfigs: List<FieldConfig> = emptyList()  // Track field configurations
     
     // Track photo paths for current session
     private var rackPhotoPath: String? = null
@@ -115,62 +116,95 @@ class MainActivity : AppCompatActivity() {
 
         // Set Rack button listener
         rackButton.setOnClickListener {
-            currentResultView = rackResult
-            // If re-capturing, delete old photo first
-            if (!rackPhotoPath.isNullOrEmpty()) {
-                try {
-                    val oldFile = File(rackPhotoPath!!)
-                    if (oldFile.exists()) {
-                        oldFile.delete()
-                        Log.d("ImageTText", "Deleted old rack photo: $rackPhotoPath")
+            // Check if this is a multiple-choice field
+            if (currentFieldConfigs.isNotEmpty() && currentFieldConfigs[0].isMultipleChoice) {
+                ChoiceFieldHelper.showChoiceDialog(
+                    this,
+                    currentFieldConfigs[0].fieldName,
+                    currentFieldConfigs[0].choices,
+                    rackResult
+                )
+            } else {
+                // Normal behavior: capture from camera
+                currentResultView = rackResult
+                // If re-capturing, delete old photo first
+                if (!rackPhotoPath.isNullOrEmpty()) {
+                    try {
+                        val oldFile = File(rackPhotoPath!!)
+                        if (oldFile.exists()) {
+                            oldFile.delete()
+                            Log.d("ImageTText", "Deleted old rack photo: $rackPhotoPath")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ImageTText", "Error deleting old photo: ${e.message}")
                     }
-                } catch (e: Exception) {
-                    Log.e("ImageTText", "Error deleting old photo: ${e.message}")
+                    rackPhotoPath = null
                 }
-                rackPhotoPath = null
+                rackResult.setText("Processing...")
+                launchCameraPhotoCapture()
             }
-            rackResult.setText("Processing...")
-            launchCameraPhotoCapture()
         }
 
         // Set Label_1 button listener
         label1Button.setOnClickListener {
-            currentResultView = label1Result
-            // If re-capturing, delete old photo first
-            if (!label1PhotoPath.isNullOrEmpty()) {
-                try {
-                    val oldFile = File(label1PhotoPath!!)
-                    if (oldFile.exists()) {
-                        oldFile.delete()
-                        Log.d("ImageTText", "Deleted old label1 photo: $label1PhotoPath")
+            // Check if this is a multiple-choice field
+            if (currentFieldConfigs.size > 1 && currentFieldConfigs[1].isMultipleChoice) {
+                ChoiceFieldHelper.showChoiceDialog(
+                    this,
+                    currentFieldConfigs[1].fieldName,
+                    currentFieldConfigs[1].choices,
+                    label1Result
+                )
+            } else {
+                // Normal behavior: capture from camera
+                currentResultView = label1Result
+                // If re-capturing, delete old photo first
+                if (!label1PhotoPath.isNullOrEmpty()) {
+                    try {
+                        val oldFile = File(label1PhotoPath!!)
+                        if (oldFile.exists()) {
+                            oldFile.delete()
+                            Log.d("ImageTText", "Deleted old label1 photo: $label1PhotoPath")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ImageTText", "Error deleting old photo: ${e.message}")
                     }
-                } catch (e: Exception) {
-                    Log.e("ImageTText", "Error deleting old photo: ${e.message}")
+                    label1PhotoPath = null
                 }
-                label1PhotoPath = null
+                label1Result.setText("Processing...")
+                launchCameraPhotoCapture()
             }
-            label1Result.setText("Processing...")
-            launchCameraPhotoCapture()
         }
 
         // Set Label_2 button listener
         label2Button.setOnClickListener {
-            currentResultView = label2Result
-            // If re-capturing, delete old photo first
-            if (!label2PhotoPath.isNullOrEmpty()) {
-                try {
-                    val oldFile = File(label2PhotoPath!!)
-                    if (oldFile.exists()) {
-                        oldFile.delete()
-                        Log.d("ImageTText", "Deleted old label2 photo: $label2PhotoPath")
+            // Check if this is a multiple-choice field
+            if (currentFieldConfigs.size > 2 && currentFieldConfigs[2].isMultipleChoice) {
+                ChoiceFieldHelper.showChoiceDialog(
+                    this,
+                    currentFieldConfigs[2].fieldName,
+                    currentFieldConfigs[2].choices,
+                    label2Result
+                )
+            } else {
+                // Normal behavior: capture from camera
+                currentResultView = label2Result
+                // If re-capturing, delete old photo first
+                if (!label2PhotoPath.isNullOrEmpty()) {
+                    try {
+                        val oldFile = File(label2PhotoPath!!)
+                        if (oldFile.exists()) {
+                            oldFile.delete()
+                            Log.d("ImageTText", "Deleted old label2 photo: $label2PhotoPath")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ImageTText", "Error deleting old photo: ${e.message}")
                     }
-                } catch (e: Exception) {
-                    Log.e("ImageTText", "Error deleting old photo: ${e.message}")
+                    label2PhotoPath = null
                 }
-                label2PhotoPath = null
+                label2Result.setText("Processing...")
+                launchCameraPhotoCapture()
             }
-            label2Result.setText("Processing...")
-            launchCameraPhotoCapture()
         }
 
         // Set Save button listener
@@ -589,6 +623,7 @@ class MainActivity : AppCompatActivity() {
         
         if (template != null) {
             currentTemplate = template  // Store the current template
+            currentFieldConfigs = template.fieldConfigs  // Store the field configurations
             Log.d("ImageTText", "Loading template: ${template.name} with columns: ${template.columns}")
             
             val fieldsContainer = findViewById<android.widget.LinearLayout>(R.id.fieldsContainer)
@@ -626,35 +661,56 @@ class MainActivity : AppCompatActivity() {
             if (template.columns.size < 2) label1Result.setText("")
             if (template.columns.size < 3) label2Result.setText("")
             
-            // Update the button labels with template column names
+            // Update the button labels with template field names (without choice info)
             if (template.columns.size >= 1) {
-                rackButton.text = template.columns[0]
-                Log.d("ImageTText", "Updated rackButton to: ${template.columns[0]}")
+                val fieldName = if (currentFieldConfigs.isNotEmpty()) {
+                    currentFieldConfigs[0].fieldName
+                } else {
+                    template.columns[0]
+                }
+                rackButton.text = fieldName
+                Log.d("ImageTText", "Updated rackButton to: $fieldName")
             }
             if (template.columns.size >= 2) {
-                label1Button.text = template.columns[1]
-                Log.d("ImageTText", "Updated label1Button to: ${template.columns[1]}")
+                val fieldName = if (currentFieldConfigs.size > 1) {
+                    currentFieldConfigs[1].fieldName
+                } else {
+                    template.columns[1]
+                }
+                label1Button.text = fieldName
+                Log.d("ImageTText", "Updated label1Button to: $fieldName")
             }
             if (template.columns.size >= 3) {
-                label2Button.text = template.columns[2]
-                Log.d("ImageTText", "Updated label2Button to: ${template.columns[2]}")
+                val fieldName = if (currentFieldConfigs.size > 2) {
+                    currentFieldConfigs[2].fieldName
+                } else {
+                    template.columns[2]
+                }
+                label2Button.text = fieldName
+                Log.d("ImageTText", "Updated label2Button to: $fieldName")
             }
             
             // Create additional fields for columns beyond the first 3
             if (template.columns.size > 3) {
                 for (i in 3 until template.columns.size) {
-                    createDynamicField(fieldsContainer, template.columns[i], i)
+                    val fieldConfig = if (i < currentFieldConfigs.size) {
+                        currentFieldConfigs[i]
+                    } else {
+                        FieldConfig.parse(template.columns[i])
+                    }
+                    createDynamicField(fieldsContainer, fieldConfig, i)
                 }
             }
             
             Toast.makeText(this, "Template loaded: ${template.name} (${template.columns.size} fields)", Toast.LENGTH_SHORT).show()
         } else {
             currentTemplate = null
+            currentFieldConfigs = emptyList()
             Log.d("ImageTText", "No template loaded, using default fields")
         }
     }
 
-    private fun createDynamicField(container: android.widget.LinearLayout, fieldName: String, index: Int) {
+    private fun createDynamicField(container: android.widget.LinearLayout, fieldConfig: FieldConfig, index: Int) {
         val fieldLayout = android.widget.LinearLayout(this)
         fieldLayout.layoutParams = android.widget.LinearLayout.LayoutParams(
             android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
@@ -672,7 +728,7 @@ class MainActivity : AppCompatActivity() {
             android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
             0.5f
         )
-        button.text = fieldName
+        button.text = fieldConfig.fieldName
         button.textSize = 14f
         button.setTextColor(android.graphics.Color.WHITE)
         button.setBackgroundResource(if (index % 2 == 0) R.drawable.button_rack else R.drawable.button_label1)
@@ -696,34 +752,45 @@ class MainActivity : AppCompatActivity() {
         editText.setBackgroundResource(if (index % 2 == 0) R.drawable.edittext_dark else R.drawable.edittext_light)
         editText.id = android.view.View.generateViewId()
         
-        // Add click listener to button to open camera
+        // Add click listener to button
         button.setOnClickListener {
-            currentResultView = editText
-            
-            // If re-capturing, delete old photo first
-            val editTextId = editText.id
-            if (dynamicFieldPhotoPaths.containsKey(editTextId)) {
-                try {
-                    val oldFile = File(dynamicFieldPhotoPaths[editTextId]!!)
-                    if (oldFile.exists()) {
-                        oldFile.delete()
-                        Log.d("ImageTText", "Deleted old dynamic field photo: ${dynamicFieldPhotoPaths[editTextId]}")
+            if (fieldConfig.isMultipleChoice) {
+                // For multiple-choice fields, show dialog
+                ChoiceFieldHelper.showChoiceDialog(
+                    this,
+                    fieldConfig.fieldName,
+                    fieldConfig.choices,
+                    editText
+                )
+            } else {
+                // For normal fields, capture from camera
+                currentResultView = editText
+                
+                // If re-capturing, delete old photo first
+                val editTextId = editText.id
+                if (dynamicFieldPhotoPaths.containsKey(editTextId)) {
+                    try {
+                        val oldFile = File(dynamicFieldPhotoPaths[editTextId]!!)
+                        if (oldFile.exists()) {
+                            oldFile.delete()
+                            Log.d("ImageTText", "Deleted old dynamic field photo: ${dynamicFieldPhotoPaths[editTextId]}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ImageTText", "Error deleting old photo: ${e.message}")
                     }
-                } catch (e: Exception) {
-                    Log.e("ImageTText", "Error deleting old photo: ${e.message}")
+                    dynamicFieldPhotoPaths.remove(editTextId)
                 }
-                dynamicFieldPhotoPaths.remove(editTextId)
+                
+                editText.setText("Processing...")
+                launchCameraPhotoCapture()
             }
-            
-            editText.setText("Processing...")
-            launchCameraPhotoCapture()
         }
         
         fieldLayout.addView(button)
         fieldLayout.addView(editText)
         container.addView(fieldLayout)
         
-        Log.d("ImageTText", "Created dynamic field: $fieldName at index $index")
+        Log.d("ImageTText", "Created dynamic field: ${fieldConfig.fieldName} at index $index (isMultipleChoice: ${fieldConfig.isMultipleChoice})")
     }
 
     private fun dpToPx(dp: Int): Int {
