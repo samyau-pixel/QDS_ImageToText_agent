@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
@@ -64,6 +65,18 @@ class MainActivity : AppCompatActivity() {
         private const val PERMISSION_REQUEST_CODE = 200
         private val REQUIRED_PERMISSIONS =
             arrayOf(Manifest.permission.CAMERA, Manifest.permission.INTERNET)
+    }
+
+    /**
+     * Helper function to set text on EditText without automatically showing keyboard
+     * The keyboard will only appear when the user explicitly clicks on the EditText
+     */
+    private fun setTextWithoutKeyboard(editText: EditText, text: String) {
+        editText.setText(text)
+        editText.clearFocus()
+        // Hide keyboard if it's showing
+        val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(editText.windowToken, 0)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -127,6 +140,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 // Normal behavior: capture from camera
                 currentResultView = rackResult
+                rackResult.clearFocus()
                 // If re-capturing, delete old photo first
                 if (!rackPhotoPath.isNullOrEmpty()) {
                     try {
@@ -140,7 +154,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     rackPhotoPath = null
                 }
-                rackResult.setText("Processing...")
+                setTextWithoutKeyboard(rackResult, "Processing...")
                 launchCameraPhotoCapture()
             }
         }
@@ -158,6 +172,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 // Normal behavior: capture from camera
                 currentResultView = label1Result
+                label1Result.clearFocus()
                 // If re-capturing, delete old photo first
                 if (!label1PhotoPath.isNullOrEmpty()) {
                     try {
@@ -171,7 +186,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     label1PhotoPath = null
                 }
-                label1Result.setText("Processing...")
+                setTextWithoutKeyboard(label1Result, "Processing...")
                 launchCameraPhotoCapture()
             }
         }
@@ -189,6 +204,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 // Normal behavior: capture from camera
                 currentResultView = label2Result
+                label2Result.clearFocus()
                 // If re-capturing, delete old photo first
                 if (!label2PhotoPath.isNullOrEmpty()) {
                     try {
@@ -202,7 +218,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     label2PhotoPath = null
                 }
-                label2Result.setText("Processing...")
+                setTextWithoutKeyboard(label2Result, "Processing...")
                 launchCameraPhotoCapture()
             }
         }
@@ -362,9 +378,9 @@ class MainActivity : AppCompatActivity() {
                 val resultView = currentResultView
                 if (resultView != null) {
                     if (result != null && result.isNotEmpty()) {
-                        resultView.setText(result)
+                        setTextWithoutKeyboard(resultView, result)
                     } else {
-                        resultView.setText("No text detected")
+                        setTextWithoutKeyboard(resultView, "No text detected")
                     }
                 }
             }
@@ -372,7 +388,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 val resultView = currentResultView
                 if (resultView != null) {
-                    resultView.setText("Error: ${e.message}")
+                    setTextWithoutKeyboard(resultView, "Error: ${e.message}")
                 }
             }
         }
@@ -765,6 +781,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 // For normal fields, capture from camera
                 currentResultView = editText
+                editText.clearFocus()
                 
                 // If re-capturing, delete old photo first
                 val editTextId = editText.id
@@ -781,7 +798,7 @@ class MainActivity : AppCompatActivity() {
                     dynamicFieldPhotoPaths.remove(editTextId)
                 }
                 
-                editText.setText("Processing...")
+                setTextWithoutKeyboard(editText, "Processing...")
                 launchCameraPhotoCapture()
             }
         }

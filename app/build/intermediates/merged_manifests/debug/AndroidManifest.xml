@@ -45,7 +45,7 @@
             android:name="com.realwear.imagettext.SettingsActivity"
             android:exported="false"
             android:parentActivityName="com.realwear.imagettext.MainActivity"
-            android:screenOrientation="landscape" />
+            android:screenOrientation="reverseLandscape" />
         <activity
             android:name="com.realwear.imagettext.PreviewActivity"
             android:exported="false"

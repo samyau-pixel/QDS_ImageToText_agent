@@ -76,8 +76,8 @@
 46-->C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:32:13-37
 47            android:parentActivityName="com.realwear.imagettext.MainActivity"
 47-->C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:34:13-55
-48            android:screenOrientation="landscape" />
-48-->C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:33:13-50
+48            android:screenOrientation="reverseLandscape" />
+48-->C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:33:13-57
 49        <activity
 49-->C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:36:9-40:58
 50            android:name="com.realwear.imagettext.PreviewActivity"

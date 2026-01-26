@@ -130,7 +130,7 @@ ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:26:17-77
 activity#com.realwear.imagettext.SettingsActivity
 ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:30:9-34:58
 	android:screenOrientation
-		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:33:13-50
+		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:33:13-57
 	android:parentActivityName
 		ADDED from C:\Dev\ImageTText\app\src\main\AndroidManifest.xml:34:13-55
 	android:exported
