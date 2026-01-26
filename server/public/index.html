@@ -498,6 +498,121 @@
             justify-content: flex-end;
         }
         
+        /* Settings Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 15px;
+        }
+        
+        .modal-header h2 {
+            color: #333;
+            font-size: 18px;
+            margin: 0;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+        
+        .modal-close:hover {
+            color: #333;
+        }
+        
+        .modal-body {
+            margin-bottom: 20px;
+        }
+        
+        .setting-item {
+            margin-bottom: 15px;
+        }
+        
+        .setting-item label {
+            display: block;
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .setting-item input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        .setting-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+        
+        .setting-hint a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .setting-hint a:hover {
+            text-decoration: underline;
+        }
+        
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        #settingsMessage {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        #settingsMessage.error {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+        
+        #settingsMessage.success {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
         .ai-response {
             background: #f5f5f5;
             border-radius: 4px;
@@ -656,6 +771,7 @@
             <p class="subtitle">Upload and review OCR data from RealWear devices</p>
             <div class="header-buttons">
                 <button id="templatesBtn" class="header-btn">📋 Templates</button>
+                <button id="settingsBtn" class="header-btn">⚙️ Settings</button>
             </div>
         </header>
         
@@ -676,6 +792,29 @@
                         <button type="submit" class="btn-primary">📤 Upload Template</button>
                     </form>
                     <div id="uploadMessage"></div>
+                </div>
+            </div>
+            
+            <!-- Settings Modal -->
+            <div class="modal" id="settingsModal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>⚙️ Settings</h2>
+                        <button class="modal-close" onclick="closeSettings()">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="setting-item">
+                            <label for="rapidApiKeyInput">RapidAPI Key:</label>
+                            <input type="password" id="rapidApiKeyInput" placeholder="Enter your RapidAPI key" />
+                            <div class="setting-hint">This key is used for OCR processing. <a href="https://rapidapi.com/noxodesoul/api/free-ocr-api" target="_blank">Get your key here</a></div>
+                        </div>
+                        <button type="button" class="btn-secondary" onclick="toggleApiKeyVisibility()">👁️ Show Key</button>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="closeSettings()">Cancel</button>
+                        <button class="btn-primary" onclick="saveApiKey()">💾 Save</button>
+                    </div>
+                    <div id="settingsMessage"></div>
                 </div>
             </div>
             
@@ -703,6 +842,7 @@
                     <button class="btn-primary" onclick="downloadBatch()">⬇️ Download Batch (CSV + Photos)</button>
                     <button class="btn-secondary" onclick="downloadFile()">⬇️ Download CSV Only</button>
                     <button class="btn-secondary" onclick="renameFile()">✏️ Rename</button>
+                    <button class="btn-secondary" onclick="reprocessOCR()">🔄 OCR</button>
                     <button class="btn-secondary" onclick="deleteFile()">🗑️ Delete</button>
                     <button class="btn-primary" onclick="openAIAssistant()">🤖 AI Assistant</button>
                 </div>
@@ -957,6 +1097,43 @@
             }
         }
         
+        async function reprocessOCR() {
+            if (!selectedFile) return;
+            
+            if (!confirm('Reprocess cells with "Processing..." or "API Error"?\n\nThis will call the OCR API and create a new Excel file with images.')) {
+                return;
+            }
+            
+            try {
+                const loadingMsg = showLoading('🔄 Reprocessing OCR...');
+                
+                const response = await fetch(`/api/batch/${selectedFile.batch}/reprocess-ocr`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess('✓ OCR reprocessing complete! Downloading Excel...');
+                    // Download the result
+                    setTimeout(() => {
+                        window.location.href = `/download-batch/${selectedFile.batch}`;
+                    }, 1000);
+                } else {
+                    showError('Error: ' + data.error);
+                }
+            } catch (err) {
+                showError('Error: ' + err.message);
+            }
+        }
+        
+        function showLoading(message) {
+            const container = document.getElementById('messageContainer');
+            container.innerHTML = `<div class="loading">${message}</div>`;
+            return container;
+        }
+        
         function showError(message) {
             const container = document.getElementById('messageContainer');
             container.innerHTML = `<div class="error">${message}</div>`;
@@ -978,6 +1155,79 @@
         document.getElementById('closeTemplatesBtn').addEventListener('click', function() {
             document.getElementById('templatesPanel').classList.remove('show');
         });
+        
+        // Settings button
+        document.getElementById('settingsBtn').addEventListener('click', function() {
+            document.getElementById('settingsModal').style.display = 'flex';
+            loadApiKey();
+        });
+        
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+            document.getElementById('settingsMessage').innerHTML = '';
+        }
+        
+        function toggleApiKeyVisibility() {
+            const input = document.getElementById('rapidApiKeyInput');
+            if (input.type === 'password') {
+                input.type = 'text';
+                event.target.textContent = '🙈 Hide Key';
+            } else {
+                input.type = 'password';
+                event.target.textContent = '👁️ Show Key';
+            }
+        }
+        
+        async function loadApiKey() {
+            try {
+                const response = await fetch('/api/settings/rapidapi-key');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('rapidApiKeyInput').value = data.rapidApiKey;
+                }
+            } catch (err) {
+                console.error('Error loading API key:', err);
+            }
+        }
+        
+        async function saveApiKey() {
+            const apiKey = document.getElementById('rapidApiKeyInput').value.trim();
+            
+            if (!apiKey) {
+                showSettingsMessage('Please enter an API key', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/settings/rapidapi-key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rapidApiKey: apiKey })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSettingsMessage('✓ API key saved successfully', 'success');
+                    setTimeout(() => {
+                        closeSettings();
+                    }, 1500);
+                } else {
+                    showSettingsMessage('Error: ' + data.error, 'error');
+                }
+            } catch (err) {
+                showSettingsMessage('Error: ' + err.message, 'error');
+            }
+        }
+        
+        function showSettingsMessage(message, type) {
+            const container = document.getElementById('settingsMessage');
+            container.className = type;
+            container.textContent = message;
+            if (type === 'success') {
+                setTimeout(() => container.innerHTML = '', 3000);
+            }
+        }
         
         document.getElementById('uploadTemplateForm').addEventListener('submit', async function(e) {
             e.preventDefault();
