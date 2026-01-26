@@ -1,9 +1,12 @@
 package com.realwear.imagettext
 
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.TableLayout
 import android.widget.TableRow
 import android.widget.TextView
@@ -82,11 +85,38 @@ class PreviewActivity : AppCompatActivity() {
         val input = EditText(this)
         input.hint = "Enter report name (e.g., Batch_001)"
         input.setText("")
+        input.textSize = 16f
+        input.setTextColor(Color.WHITE)
+        input.setHintTextColor(Color.parseColor("#999999"))
+        
+        // Style the input with rounded corners and background
+        val background = GradientDrawable().apply {
+            setColor(Color.parseColor("#2D2D3D"))
+            cornerRadius = 12f
+        }
+        input.background = background
+        
+        // Add padding
+        input.setPadding(
+            dpToPx(20),
+            dpToPx(15),
+            dpToPx(20),
+            dpToPx(15)
+        )
+        
+        // Wrap in a container with margin
+        val container = FrameLayout(this)
+        val layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        )
+        layoutParams.setMargins(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
+        container.addView(input, layoutParams)
         
         AlertDialog.Builder(this)
             .setTitle("📝 Report Name")
             .setMessage("Enter a name for this report:")
-            .setView(input)
+            .setView(container)
             .setPositiveButton("Send") { _, _ ->
                 val reportName = input.text.toString().trim()
                 if (reportName.isEmpty()) {
@@ -97,6 +127,10 @@ class PreviewActivity : AppCompatActivity() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+    
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
     }
     
     private fun sendDataWithReportName(reportName: String) {
